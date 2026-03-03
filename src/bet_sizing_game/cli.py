@@ -15,6 +15,8 @@ def main() -> None:
     parser.add_argument("--lobby-seconds", type=int, default=30, help="Lobby countdown before round 1 starts")
     parser.add_argument("--starting-bankroll", type=int, default=1000, help="Starting bankroll for each player")
     parser.add_argument("--round-stipend", type=int, default=0, help="Cash injected at the start of each event")
+    parser.add_argument("--bust-rebuy-amount", type=int, default=500, help="Reset bankroll amount when player reaches $0")
+    parser.add_argument("--access-code", default="quant", help="Join code players must provide")
     parser.add_argument(
         "--admin-key",
         default="change-me-admin-key",
@@ -27,6 +29,8 @@ def main() -> None:
         lobby_seconds=args.lobby_seconds,
         starting_bankroll=args.starting_bankroll,
         round_stipend=args.round_stipend,
+        bust_rebuy_amount=args.bust_rebuy_amount,
+        access_code=args.access_code,
         admin_key=args.admin_key,
     )
 

@@ -16,26 +16,41 @@ from .engine import GameEngine
 
 class JoinRequest(BaseModel):
     name: str = Field(min_length=1, max_length=40)
+    code: str = Field(min_length=1, max_length=64)
 
 
 class AdminSettingsUpdateRequest(BaseModel):
     lobby_seconds: int | None = Field(default=None, ge=5, le=3_600)
     starting_bankroll: int | None = Field(default=None, ge=1, le=1_000_000)
     round_stipend: int | None = Field(default=None, ge=0, le=1_000_000)
+    bust_rebuy_amount: int | None = Field(default=None, ge=1, le=1_000_000)
+    access_code: str | None = Field(default=None, min_length=1, max_length=64)
     uniform_event_seconds: int | None = Field(default=None, ge=5, le=3_600)
+    uniform_fermi_seconds: int | None = Field(default=None, ge=8, le=3_600)
 
 
 class AdminEventUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=140)
-    description: str | None = Field(default=None, min_length=1, max_length=400)
+    description: str | None = Field(default=None, min_length=1, max_length=500)
     yes_label: str | None = Field(default=None, min_length=1, max_length=40)
     no_label: str | None = Field(default=None, min_length=1, max_length=40)
     yes_probability: float | None = Field(default=None, gt=0.0, lt=1.0)
     bet_window_seconds: int | None = Field(default=None, ge=5, le=3_600)
 
 
+class AdminFermiUpdateRequest(BaseModel):
+    prompt: str | None = Field(default=None, min_length=1, max_length=500)
+    true_value: float | None = Field(default=None, ge=0)
+    unit: str | None = Field(default=None, min_length=1, max_length=80)
+    answer_window_seconds: int | None = Field(default=None, ge=8, le=3_600)
+
+
 class AdminReplaceEventsRequest(BaseModel):
     events: list[dict[str, Any]]
+
+
+class AdminReplaceFermiRequest(BaseModel):
+    questions: list[dict[str, Any]]
 
 
 class AdminRestartRequest(BaseModel):
@@ -55,7 +70,7 @@ class GameServer:
 
         static_dir = Path(__file__).resolve().parent / "static"
 
-        app = FastAPI(title="Bet Sizing Multiplayer Game", version="2.0.0")
+        app = FastAPI(title="Bet Sizing Multiplayer Game", version="3.0.0")
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -63,6 +78,17 @@ class GameServer:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        @app.middleware("http")
+        async def no_cache_static(request: Request, call_next):  # type: ignore[no-redef]
+            response = await call_next(request)
+            path = request.url.path
+            if path == "/" or path.startswith("/static/"):
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+            return response
+
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
         @app.get("/")
@@ -76,18 +102,25 @@ class GameServer:
         @app.get("/api/events")
         async def events() -> dict[str, Any]:
             return {
-                "events": self.engine.event_catalog(),
+                "events": self.engine.event_catalog(include_sensitive=False),
+                "fermi_questions": self.engine.fermi_catalog(include_answers=False),
                 "lobby_seconds": self.engine.lobby_seconds,
                 "starting_bankroll": self.engine.starting_bankroll,
                 "round_stipend": self.engine.round_stipend,
+                "bust_rebuy_amount": self.engine.bust_rebuy_amount,
                 "random_outcomes": True,
+                "admin_start_required": True,
+                "requires_access_code": True,
                 "rules": self.engine.rules,
             }
 
         @app.post("/api/join")
         async def join(payload: JoinRequest) -> dict[str, Any]:
             async with self.lock:
-                player = self.engine.join_player(payload.name)
+                try:
+                    player = self.engine.join_player(payload.name, payload.code)
+                except ValueError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
                 state = self.engine.public_state_for(player.token)
             await self.broadcast_all_states()
             return {"token": player.token, "state": state}
@@ -156,7 +189,10 @@ class GameServer:
                         lobby_seconds=payload.lobby_seconds,
                         starting_bankroll=payload.starting_bankroll,
                         round_stipend=payload.round_stipend,
+                        bust_rebuy_amount=payload.bust_rebuy_amount,
+                        access_code=payload.access_code,
                         uniform_event_seconds=payload.uniform_event_seconds,
+                        uniform_fermi_seconds=payload.uniform_fermi_seconds,
                     )
                 except ValueError as exc:
                     raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -190,6 +226,36 @@ class GameServer:
             async with self.lock:
                 try:
                     self.engine.replace_events(payload.events)
+                except ValueError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
+                state = self.engine.admin_state()
+            await self.broadcast_all_states()
+            return {"state": state}
+
+        @app.post("/api/admin/fermi/{question_id}")
+        async def admin_fermi_update(question_id: int, request: Request, payload: AdminFermiUpdateRequest) -> dict[str, Any]:
+            self._assert_admin(request)
+            async with self.lock:
+                try:
+                    self.engine.update_fermi_question(
+                        question_id,
+                        prompt=payload.prompt,
+                        true_value=payload.true_value,
+                        unit=payload.unit,
+                        answer_window_seconds=payload.answer_window_seconds,
+                    )
+                except ValueError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
+                state = self.engine.admin_state()
+            await self.broadcast_all_states()
+            return {"state": state}
+
+        @app.put("/api/admin/fermi")
+        async def admin_replace_fermi(request: Request, payload: AdminReplaceFermiRequest) -> dict[str, Any]:
+            self._assert_admin(request)
+            async with self.lock:
+                try:
+                    self.engine.replace_fermi_questions(payload.questions)
                 except ValueError as exc:
                     raise HTTPException(status_code=400, detail=str(exc)) from exc
                 state = self.engine.admin_state()
@@ -236,6 +302,19 @@ class GameServer:
                         try:
                             async with self.lock:
                                 self.engine.place_bet(token=token, option_key=option, amount=amount)
+                        except ValueError as exc:
+                            await websocket.send_json({"type": "error", "message": str(exc)})
+                            continue
+                        await self.broadcast_all_states()
+                    elif msg_type == "fermi_guess":
+                        try:
+                            guess = float(msg.get("guess"))
+                        except (TypeError, ValueError):
+                            await websocket.send_json({"type": "error", "message": "Guess must be a number."})
+                            continue
+                        try:
+                            async with self.lock:
+                                self.engine.submit_fermi_guess(token=token, guess_value=guess)
                         except ValueError as exc:
                             await websocket.send_json({"type": "error", "message": str(exc)})
                             continue
@@ -311,6 +390,8 @@ def create_app(
     lobby_seconds: int = 30,
     starting_bankroll: int = 1_000,
     round_stipend: int = 0,
+    bust_rebuy_amount: int = 500,
+    access_code: str = "quant",
     admin_key: str = "change-me-admin-key",
 ) -> FastAPI:
     engine = GameEngine(
@@ -318,6 +399,8 @@ def create_app(
         lobby_seconds=lobby_seconds,
         starting_bankroll=starting_bankroll,
         round_stipend=round_stipend,
+        bust_rebuy_amount=bust_rebuy_amount,
+        access_code=access_code,
     )
     server = GameServer(engine, admin_key=admin_key)
     return server.app

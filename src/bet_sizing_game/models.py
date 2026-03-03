@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 
-GamePhase = Literal["lobby", "running", "finished"]
+GamePhase = Literal["lobby", "events", "fermi", "finished"]
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,15 @@ class GameEvent:
     bet_window_seconds: int
 
 
+@dataclass(frozen=True)
+class FermiQuestion:
+    question_id: int
+    prompt: str
+    true_value: float
+    unit: str
+    answer_window_seconds: int
+
+
 @dataclass
 class PlayerBet:
     event_id: int
@@ -40,6 +49,16 @@ class EventResult:
 
 
 @dataclass
+class FermiResult:
+    question_id: int
+    prompt: str
+    true_value: float
+    unit: str
+    valid_guess_count: int
+    eligible_count: int
+
+
+@dataclass
 class PlayerEventResult:
     event_id: int
     title: str
@@ -47,6 +66,21 @@ class PlayerEventResult:
     bet_amount: int
     outcome_key: str
     pnl_delta: float
+    bankroll_after: float
+    rebuy_applied: bool
+
+
+@dataclass
+class PlayerFermiResult:
+    question_id: int
+    prompt: str
+    guess: float | None
+    true_value: float
+    unit: str
+    eligible_for_percentile: bool
+    counted_in_percentile: bool
+    percentile: float
+    boost_pct: float
     bankroll_after: float
 
 
@@ -57,7 +91,11 @@ class PlayerState:
     bankroll: float
     contributions: float
     current_bet: PlayerBet | None = None
+    current_fermi_guess: float | None = None
+    ever_busted: bool = False
+    bust_count: int = 0
     results: list[PlayerEventResult] = field(default_factory=list)
+    fermi_results: list[PlayerFermiResult] = field(default_factory=list)
 
     @property
     def pnl(self) -> float:

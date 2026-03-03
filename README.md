@@ -51,19 +51,29 @@ where `x` is team PnL and `C` is taker bot loss amount.
 
 This repo also includes a realtime multiplayer web game for probabilistic betting competitions:
 
-- 15 escalating events with binary options and transparent probabilities/payout multipliers
+- 12 escalating probability events (shared random outcome for all players each round)
+- 5 GT-based Fermi finals questions after betting rounds
+- Event probabilities are hidden from players (they infer/calculate themselves)
 - Realtime websocket updates (bankroll, PnL, rankings, timer)
-- Automatic lobby countdown and round progression
-- Random server-side event outcomes shared by all players
-- No automatic bankroll injection between rounds by default (`round_stipend=0`)
-- Final top-10 leaderboard and podium
+- Admin-only game start
+- Join code gate for players
+- Auto bust reset: players who hit `$0` are reset to `$500` so everyone can keep playing
+- Full leaderboard visible to all users (rank 1 to rank N)
 - Built-in admin pane for controlling timers, events, lifecycle, and full leaderboard/results
 
 ### Run the server
 
 ```bash
 python3 -m pip install -e .
-bet-sizing-server --host 0.0.0.0 --port 8000 --seed 2026 --admin-key "change-this"
+bet-sizing-server \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --seed 2026 \
+  --admin-key "change-this" \
+  --access-code "quant" \
+  --starting-bankroll 1000 \
+  --bust-rebuy-amount 500 \
+  --round-stipend 0
 ```
 
 Open `http://localhost:8000` from multiple browsers/devices.
@@ -77,7 +87,9 @@ bet-sizing-server \
   --port 8000 \
   --lobby-seconds 30 \
   --starting-bankroll 1000 \
+  --bust-rebuy-amount 500 \
   --round-stipend 0 \
+  --access-code "quant" \
   --admin-key "change-this"
 ```
 
@@ -85,7 +97,10 @@ bet-sizing-server \
 
 ```bash
 docker build -t bet-sizing-game .
-docker run --rm -p 8000:8000 bet-sizing-game --admin-key "change-this"
+docker run --rm -p 8000:8000 bet-sizing-game \
+  bet-sizing-server --host 0.0.0.0 --port 8000 \
+  --admin-key "change-this" --access-code "quant" \
+  --starting-bankroll 1000 --bust-rebuy-amount 500 --round-stipend 0
 ```
 
 This single-instance websocket server is suitable for 100+ concurrent players on a modest VM/container.

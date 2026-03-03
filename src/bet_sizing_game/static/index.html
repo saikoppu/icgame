@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@400;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260303d" />
   </head>
   <body>
     <div class="bg-glow bg-glow-a"></div>
@@ -19,8 +19,8 @@
     <main class="app-shell">
       <header class="hero">
         <div class="pill">Multiplayer Bet Sizing 2026</div>
-        <h1>Probability Arena</h1>
-        <p>15 escalating random events. Real-time PnL. Top 10 leaderboard + podium.</p>
+        <h1>Probability Arena + Fermi Finals</h1>
+        <p>12 betting rounds + 5 GT Fermi questions, with full leaderboard visibility.</p>
       </header>
 
       <nav class="tab-nav">
@@ -32,9 +32,10 @@
       <section id="playTab" class="tab-pane">
         <section id="joinCard" class="panel join-panel">
           <h2>Join Lobby</h2>
-          <p>Game starts automatically when lobby timer ends, or when admin starts it.</p>
+          <p>Admin controls game start. Enter your player name and lobby code to join.</p>
           <form id="joinForm">
-            <input id="nameInput" type="text" minlength="1" maxlength="40" placeholder="Team / Player name" required />
+            <input id="nameInput" type="text" minlength="1" maxlength="40" placeholder="Player name" required />
+            <input id="codeInput" type="text" minlength="1" maxlength="64" placeholder="Lobby code" required />
             <button type="submit">Enter Game</button>
           </form>
           <p id="joinError" class="error"></p>
@@ -66,8 +67,8 @@
                 <h2 id="phaseTitle">Lobby</h2>
                 <span id="timerPill" class="timer-pill">--</span>
               </div>
-              <h3 id="eventTitle">Waiting for players...</h3>
-              <p id="eventDescription">Join now. Everyone gets the same outcomes in real-time.</p>
+              <h3 id="eventTitle">Waiting for admin...</h3>
+              <p id="eventDescription">Admin will start the game once everyone is in.</p>
               <div id="eventMeta" class="event-meta"></div>
 
               <form id="betForm" class="bet-form hidden">
@@ -80,11 +81,22 @@
                   <button type="submit">Place Bet</button>
                 </div>
               </form>
+
+              <form id="fermiForm" class="bet-form hidden">
+                <div class="bet-controls">
+                  <label>
+                    Your Guess
+                    <input id="fermiGuessInput" type="number" min="0" step="1" required />
+                  </label>
+                  <button type="submit">Submit Fermi Guess</button>
+                </div>
+              </form>
+
               <p id="betStatus" class="info-line"></p>
             </article>
 
             <article class="panel leaderboard-panel">
-              <h3>Top 10 Leaderboard</h3>
+              <h3>Leaderboard (All Players)</h3>
               <table>
                 <thead>
                   <tr>
@@ -92,6 +104,7 @@
                     <th>Name</th>
                     <th>PnL</th>
                     <th>Bankroll</th>
+                    <th>Busts</th>
                   </tr>
                 </thead>
                 <tbody id="leaderboardBody"></tbody>
@@ -101,7 +114,7 @@
 
           <div class="main-grid secondary">
             <article class="panel history-panel">
-              <h3>Your Last 15 Results</h3>
+              <h3>Recent Results</h3>
               <ul id="resultList"></ul>
             </article>
 
@@ -119,17 +132,29 @@
           <ul id="rulesList"></ul>
         </article>
         <article class="panel">
-          <h3>Event Schedule (15 total)</h3>
+          <h3>Betting Events</h3>
           <table>
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Title</th>
-                <th>Probability (Yes)</th>
                 <th>Timer</th>
               </tr>
             </thead>
             <tbody id="rulesEventsBody"></tbody>
+          </table>
+        </article>
+        <article class="panel">
+          <h3>Fermi Questions</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Prompt</th>
+                <th>Timer</th>
+              </tr>
+            </thead>
+            <tbody id="rulesFermiBody"></tbody>
           </table>
         </article>
       </section>
@@ -137,7 +162,7 @@
       <section id="adminTab" class="tab-pane hidden">
         <article class="panel admin-auth">
           <h2>Admin Pane</h2>
-          <p>Use the admin key to manage rounds, timers, events, and game lifecycle.</p>
+          <p>Enter admin key to control lifecycle, settings, events, and Fermi content.</p>
           <div class="admin-auth-row">
             <input id="adminKeyInput" type="password" placeholder="Admin key" />
             <button id="adminConnectBtn" type="button">Connect Admin</button>
@@ -150,7 +175,7 @@
             <article class="panel">
               <h3>Game Controls</h3>
               <div class="control-row">
-                <button id="adminStartBtn" type="button">Start Now</button>
+                <button id="adminStartBtn" type="button">Start Game</button>
                 <button id="adminAdvanceBtn" type="button">Advance / Resolve</button>
                 <button id="adminPauseBtn" type="button">Pause Timer</button>
                 <button id="adminResumeBtn" type="button">Resume Timer</button>
@@ -176,12 +201,16 @@
               <form id="adminSettingsForm">
                 <div class="admin-grid">
                   <label>
-                    Lobby Seconds
-                    <input id="adminLobbySeconds" type="number" min="5" />
+                    Join Code
+                    <input id="adminAccessCode" type="text" />
                   </label>
                   <label>
                     Starting Bankroll
                     <input id="adminStartingBankroll" type="number" min="1" />
+                  </label>
+                  <label>
+                    Bust Reset Amount
+                    <input id="adminBustRebuy" type="number" min="1" />
                   </label>
                   <label>
                     Round Stipend
@@ -191,6 +220,10 @@
                     Set All Event Timers
                     <input id="adminUniformEventSeconds" type="number" min="5" />
                   </label>
+                  <label>
+                    Set All Fermi Timers
+                    <input id="adminUniformFermiSeconds" type="number" min="8" />
+                  </label>
                 </div>
                 <button type="submit">Save Settings</button>
               </form>
@@ -199,7 +232,7 @@
 
           <div class="main-grid secondary">
             <article class="panel">
-              <h3>Edit Event (Lobby only)</h3>
+              <h3>Edit Betting Event (Lobby only)</h3>
               <form id="adminEventForm">
                 <label>
                   Event
@@ -211,7 +244,7 @@
                 </label>
                 <label>
                   Description
-                  <textarea id="adminEventDescription" rows="3" maxlength="400"></textarea>
+                  <textarea id="adminEventDescription" rows="3" maxlength="500"></textarea>
                 </label>
                 <div class="admin-grid">
                   <label>
@@ -224,7 +257,7 @@
                   </label>
                   <label>
                     Yes Probability (0..1)
-                    <input id="adminYesProbability" type="number" min="0.001" max="0.999" step="0.001" />
+                    <input id="adminYesProbability" type="number" min="0.01" max="0.99" step="0.001" />
                   </label>
                   <label>
                     Timer Seconds
@@ -236,10 +269,45 @@
             </article>
 
             <article class="panel">
-              <h3>Replace Entire Event Set (Advanced)</h3>
-              <p>Paste JSON array with fields: title, description, yes_label, no_label, yes_probability, bet_window_seconds.</p>
+              <h3>Edit Fermi Question (Lobby only)</h3>
+              <form id="adminFermiForm">
+                <label>
+                  Question
+                  <select id="adminFermiSelect"></select>
+                </label>
+                <label>
+                  Prompt
+                  <textarea id="adminFermiPrompt" rows="3" maxlength="500"></textarea>
+                </label>
+                <div class="admin-grid">
+                  <label>
+                    True Value
+                    <input id="adminFermiTruth" type="number" min="0" step="1" />
+                  </label>
+                  <label>
+                    Unit
+                    <input id="adminFermiUnit" type="text" maxlength="80" />
+                  </label>
+                  <label>
+                    Timer Seconds
+                    <input id="adminFermiSeconds" type="number" min="8" />
+                  </label>
+                </div>
+                <button type="submit">Update Fermi Question</button>
+              </form>
+            </article>
+          </div>
+
+          <div class="main-grid secondary">
+            <article class="panel">
+              <h3>Replace Event Set JSON (Advanced)</h3>
               <textarea id="adminReplaceEventsJson" rows="12"></textarea>
               <button id="adminReplaceEventsBtn" type="button">Replace All Events</button>
+            </article>
+            <article class="panel">
+              <h3>Replace Fermi Set JSON (Advanced)</h3>
+              <textarea id="adminReplaceFermiJson" rows="12"></textarea>
+              <button id="adminReplaceFermiBtn" type="button">Replace All Fermi Questions</button>
             </article>
           </div>
 
@@ -253,7 +321,9 @@
                     <th>Name</th>
                     <th>PnL</th>
                     <th>Bankroll</th>
-                    <th>Current Bet</th>
+                    <th>Busts</th>
+                    <th>Live Bet</th>
+                    <th>Live Fermi</th>
                   </tr>
                 </thead>
                 <tbody id="adminLeaderboardBody"></tbody>
@@ -261,16 +331,14 @@
             </article>
 
             <article class="panel">
-              <h3>Event Results</h3>
+              <h3>Round Status</h3>
               <table>
                 <thead>
                   <tr>
+                    <th>Mode</th>
                     <th>ID</th>
-                    <th>Title</th>
                     <th>Status</th>
-                    <th>Outcome</th>
-                    <th>Bets</th>
-                    <th>Wagered</th>
+                    <th>Extra</th>
                   </tr>
                 </thead>
                 <tbody id="adminResultsBody"></tbody>
@@ -281,6 +349,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=20260303d" defer></script>
   </body>
 </html>
