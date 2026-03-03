@@ -1,0 +1,286 @@
+  Trading Competition Case Packet
+Trading at Georgia Tech February 22-23, 2025
+ 1
+
+Contents
+1 Introduction 4
+2 Market Making Exchange Simulation 5
+2.1 Overview.............................. 5
+2.2 GameDetails............................ 5 2.2.1 Exchange.......................... 5 2.2.2 TakerBots......................... 5 2.2.3 Auction........................... 6
+2.3 GameRules ............................ 6 2.3.1 GeneralRules ....................... 6 2.3.2 Scenario1:SingularSuit ................. 7 2.3.3 Scenario2:MultipleSuits................. 8 2.3.4 Scenario3:SpreadofSuits ................ 8 2.3.5 Scenario4:SumofRanks................. 8 2.3.6 Scenario5:PowerCard .................. 9 2.3.7 Scenario6:MultiplePowers................ 9 2.3.8 Scenario7:NumberofPairs................ 9 2.3.9 Scenario8:PokerHand .................. 10
+2.4 GameSchedule........................... 11
+2.5 Scoring............................... 11
+3 Token Trading Game 12
+3.1 Overview.............................. 12 3.2 GameRules ............................ 12 3.3 TradingMechanics......................... 13 3.4 Example .............................. 13 3.5 Hints................................ 13 3.6 GameSchedule........................... 14 3.7 Scoring............................... 14
+4 Data Challenge Exchange Simulation 15
+4.1 Overview.............................. 15 4.2 DataStructure........................... 15 4.3 CompetitionPeriod ........................ 15 4.4 TradingMechanics......................... 15 4.5 PositionLimits........................... 16
+2
+
+4.6 AdditionalInformation....................... 16 4.6.1 Scoring........................... 16
+5 Gold Rush Auction Game 17
+5.1 Overview.............................. 17
+5.2 GameRules ............................ 17
+5.3 BiddingMechanics......................... 17
+5.4 Map&GadgetArrangement.................... 18
+5.4.1 Scoring........................... 19 5.4.2 Example .......................... 19
+3
+
+1 Introduction
+Trading at Georgia Tech welcomes you to our 1st Annual Intercollegiate Trading Competition. We are thrilled to host this competition and hope that it provides a rich and challenging learning experience for competitors of all backgrounds. The event will take place on Saturday, February 22, and Sunday, February 23, at the Conference Center in the Georgia Tech Hotel.
+This competition is made possible thanks to the generous support of our sponsors: • Gold: Hudson River Trading, Citadel | Citadel Securities
+• Silver: IMC Trading, Flow Traders, Old Mission Capital
+The competition consists of four trading games. Teams will be ranked based on their combined performance across all games. Between games, participants will have the opportunity to network with attending sponsors and participate in sessions hosted by our gold sponsors. The four games participants will play are a market making exchange simulation, token trading game, data challenge exchange simulation, and Dutch auction game. More details on each game can be found in the case packet.
+The market making exchange simulation uses a simulated exchange, where par- ticipants will click to trade securities like the sum of card draws.
+The token trading game will involve participants walking around and trading tokens with each other to maximize profits. Teams will have different incentives to stimulate trading.
+The data challenge exchange simulation will allow participants to trade live in a market where prices are controlled by market makers with infinite quantity. Participants will be provided with training data and can either click trade or algorithmically trade.
+The Dutch auction game involves participants bidding for specific objects, with the items contributing to their final score at the end of the game.
+We look forward to an exciting and competitive event – good luck to all partici- pants!
+4
+
+2 Market Making Exchange Simulation 2.1 Overview
+This trading game simulates a real-time market environment where participants can engage in both click trading using public and private information. The goal for participants is to maximize their P&L through simultaneous market making and position taking.
+2.2 Game Details
+2.2.1 Exchange
+Participants will trade on our built-in electronic exchange. Each team will be assigned a team name (username) and password (API Key) to log into the ex- change. The exchange would display orderbooks, standing orders, and positions. Teams can submit orders as they wish but are limited to 100 contracts (open orders & current positions) for each equity. Additionally, teams will have access to their balance and unrealized P&L and the calculations are as followed:
+• Balance: A fake balance (since there are no starting balances or funds) that would increase when you short an equity and decrease when you long.
+•
+2.2.2
+Estimated P&L: The sum of Unrealized and Realized P&L. Unreal- ized P&L is the potential profit or loss from open positions, based on current market prices. Realized P&L is the actual profit or loss from completed trades. It is the difference between the purchase price and the selling price of an asset.
+Taker Bots
+In order to incentivize market-making there will be taker bots running on the exchange. The bots are configured (may be different for each game) with a max volume, max spread, and decay function. For every price level x and volume y within the max spread, the bot will place a market order with volume decay(y). The sum of all market orders placed will not exceed max volume.
+The parameters are tuned based on the specific game mechanics. A few rules of thumb:
+• If there are more tickers, the max volume for each will decrease. 5
+
+• If the fair value is higher variance, the max spread will increase.
+Additionally, the taker bot will not trade at prices that are guaranteed to be adverse. For example, if we are trading on the sum of 10 dice rolls, the taker bot will not trade above 60 or below 10.
+2.2.3 Auction
+Teams will have the ability to auction for pieces of information throughout the round (specific information detailed in 2.3.1). All teams must submit an auction price by the specified time. There will be 1 auction winner and we will manually come up to the team and provide information. We will deduct the auction price from the winning team’s P&L.
+2.3 Game Rules
+In each game, we will draw without repeat from a standard deck of 52 cards to form smaller decks. Then the contract values will be formed from samples from the smaller decks. The smaller decks will be redrawn for each scenario. Competitors will trade through a series of 8 scenarios.
+2.3.1 General Rules
+• Information Provided: Every 1.5 minutes (90 seconds) we will publicly
+reveal 1 draw to all teams. No starting information will be given.
+• Auction: At minute 7.5, teams will submit a bid for a sneak-peak of 2 future draws (the draws which are revealed at minute 9 and 10.5).
+• Duration: 15 minutes.
+6
+
+Game Structure:
+Minute
+0-1.5 1.5-3 3-4.5 4.5-6 6-7.5 7.5-9
+9 - 10.5 10.5 - 12 12 - 13.5 13.5 - 15
+Action
+Trading begins.
+First card revealed per contract.
+Second card revealed per contract.
+Third card revealed per contract.
+Fourth card revealed per contract. Auction Ends.
+Fifth card revealed per contract.
+Sixth card revealed per contract.
+Seventh card revealed per contract.
+Eighth card revealed per contract.
+Ninth card revealed per contract. Game ends, exchange reset.
+ 2.3.2 Scenario 1: Singular Suit
+• Decks available → DECK A (5 cards) • Contracts available → SUMSUITS
+• Contract information:
+⋆ We will sample 10 cards (only suit not rank) with replacement from DECK A. Contract SUMSUITS settles to the sum of the suits mul- tiplied by 10, where:
+∗ Heart = 1
+∗ Spade = 2
+∗ Club=3
+∗ Diamond = 4
+– Example: 5 Heart and 5 Club drawn, then the value of the contract is (1 ∗ 5 + 3 ∗ 5) ∗ 10 = 200.
+7
+
+2.3.3 Scenario 2: Multiple Suits
+• Decks available → DECK A (5 cards), DECK B (5 cards) • Contracts available → SUMSUITSA, SUMSUITSB
+• Contract information:
+⋆ SUMSUITSA is the same contract as described in 2.3.2. ⋆ SUMSUITSB is a similar contract, drawn from DECK B.
+2.3.4 Scenario 3: Spread of Suits
+• Decks available → DECK A (5 cards), DECK B (5 cards)
+• Contracts available → SUMSUITSA, SUMSUITSB, SPREADSUITAB • Contract information:
+⋆ SUMSUITSA, SUMSUITSB are exactly same as 2.3.3.
+⋆ SPREADSUITAB is equivalent to SUMSUITSA - SUMSUITSB +
+500.
+2.3.5 Scenario 4: Sum of Ranks
+• Decks available → DECK A (5 cards), DECK B (5 cards)
+• Contracts available → SUMRANKA, SUMRANKB, SPREADRANKAB • Contract information:
+⋆ Contract SUMRANKA settles to the sum of ranks where: ∗ Ace = 1
+∗ # Card = Corresponding # ∗ Jack = 11
+∗ Queen = 12
+∗ King = 13
+– Example: 5 Seven and 5 King drawn, then the value of the contract is 7 ∗ 5 + 13 ∗ 5 = 100.
+8
+
+⋆ SPREADRANKAB is equivalent to SUMRANKA - SUMRANKB + 1000.
+2.3.6 Scenario 5: Power Card
+• Decks available → DECK A (10 cards) • Contracts available → POWERRED
+• Contract information:
+⋆ Contract POWERRED settles to 2a where a = the number of red cards drawn.
+2.3.7 Scenario 6: Multiple Powers
+• Decks available → DECK A (10 cards)
+• Contracts available → POWERRED, POWERBLACK • Contract information:
+⋆ Contract POWERRED settles to 2a where a = the number of red cards drawn from DECK A.
+⋆ Contract POWERBLACK settles to 2b where b = the number of black cards drawn from DECK A.
+2.3.8 Scenario 7: Number of Pairs
+• Decks available → DECK A (7 cards) • Contracts available → NUMPAIRS
+• Contract information:
+⋆ Contract NUMPAIRS settles to the numbers of pairs drawn in the ten cards · 100:
+∗ When there are more than 2 samples for a rank, every additional sample will add one to the number of pairs.
+∗ Example: Three 2’s, Four J’s, Two 5’s, and One Ace would settle to (2+3+1+0) · 100 = 600.
+9
+
+2.3.9 Scenario 8: Poker Hand
+• Contracts available → POKER • Contract information:
+⋆ We will randomly draw 10 cards without replacement from a standard 52 card deck. Contract POKER is based on the best 5 card poker hand from the 10 drawn cards and settles to:
+∗ Two Pair or Lower: 10 ∗ Trips: 50
+∗ Straight: 100
+∗ Flush: 200
+∗ Full House: 300
+∗ Quads: 500
+∗ Straight Flush: 1000 ∗ Royal Flush: 2000
+10
+
+2.4 Game Schedule
+Task Event
+1 Introduction.
+2 Singular Suit.
+3 Multiple Suits.
+4 Spread of Suits.
+5 Sum of Ranks.
+6 Power Card.
+7 Multiple Powers.
+8 Number of Pairs.
+9 Poker Hand.
+10 Scoring.
+2.5 Scoring
+We use a utility function for scoring to encourage being risk averse.
+• For each scenario, suppose a team has final PnL of x, and the taker bot loss a total of C > 0 (C is simply the amount of free money), then the team’s score would be:
+(ln(1+35·Cx) ifx≥0 scoreforscenario=U(x)= 35·Cx ifx<0
+• Teams are ranked according to the sum of 8 scores from the scenarios.
+ 11
+
+3 Token Trading Game 3.1 Overview
+Teams will be given chips of various colors, and they must trade to form various combinations that receive bonuses.
+3.2 Game Rules
+• Each color (red, blue, green, yellow) token is worth $1.
+• Each black token is worth $0.20 (purely used for change, with no other
+significance in the game).
+• Participants receive a starting stack of chips. (Note: different teams may receive different starting stacks.)
+• Participants are given a combination of colors that will result in a bonus. (e.g., 3 red + 2 yellow + 1 blue ⇒ $10 bonus). Different teams may have different bonus combinations.
+• The chip-to-bonus ratio has the following bound: given a bonus Rred+Y yellow+Bblue+Ggreen⇒Xbonus,
+then
+• Each round:
+1≤X≤4 R+Y +B+G
+ – There will be different bonus configurations in place.
+– Participants will have 15 minutes to trade.
+– Participants must log every trade for final accounting and cheat de- tection.
+1. Navigate to your team’s sheet within the Trading Log.
+2. For each trade, log the team id you traded with under counter- party and the deltas of each token type (e.g. if I traded 3 red for 3 blue, I’d log 3 under red and -3 under blue).
+12
+
+3.3
+•
+•
+3. At the end of each round, perform a final count of each token value and log them in your team’s row in the Settlement Log.
+4. Our staff will run a script to check for discrepancies, and we will clarify them with your team.
+5. ONLY write values in cells with column names.
+6. Blank cells will be interpreted as 0.
+7. There is a data validation. DON’T remove it.
+Trading Mechanics
+Trades must be physically settled (i.e., you can’t agree to trade with an- other team without having the chips available).
+Members of each team can split up and trade separately.
+3.4 Example
+• Team A needs 3 red, 2 yellow, 1 blue for a bonus of $10.
+• Team A finishes with 7 red, 6 yellow, 4 blue, 10 green, 5 black ⇒ $48.00
+final value.
+– The base token total is $28.00.
+– There were 2 combinations formed. – The bonus total is $20.
+3.5 Hints
+• The bonus structure might result in a theo value difference in the tokens or a disadvantage towards certain teams.
+• Don’t assume that a red chip is worth the same as a yellow chip and trade it one to one off the bat. You might be making a bad trade.
+• Before each trade, ask around and make trades with teams that give you the best price.
+13
+
+3.6 Game Schedule
+Task Event
+1 Introduction.
+2 Game 1.
+3 Trade Reconciliation 1.
+4 Break.
+5 Game 2.
+6 Trade Reconciliation 2.
+7 Break.
+8 Game 3.
+9 Trade Reconciliation 3.
+10 Break.
+11 Game 4.
+12 Trade Reconciliation 4.
+13 Scoring.
+3.7 Scoring
+At the end of 4 games, team are ranked by sum of final values.
+ 14
+
+4 Data Challenge Exchange Simulation 4.1 Overview
+This trading game simulates a real-time market environment where participants can engage in both manual and automated trading strategies using historical and live market data.
+4.2 Data Structure
+• Participants receive a training dataset containing bid and ask prices for 5 different equities.
+• The data includes multiple price ticks to establish historical patterns.
+• Market data follows consistent generation rules between training and test-
+ing periods.
+4.3 Competition Period
+• The testing phase runs for 3 hours.
+• The testing period begins immediately after training data is distributed.
+• Live market data is generated using the same statistical process as training data.
+4.4 Trading Mechanics
+• Participants can execute trades through two methods: – Manual trading via click interface.
+– Automated trading using bot implementation.
+• There will be market making bots running with infinite quantity to control the prices.
+• Participants can trade with both limit or market orders.
+15
+
+4.5 Position Limits
+• Maximum position of 100 shares for each equity.
+• The limit applies independently to each of the 5 stocks.
+• Position limit is enforced at all times during trading.
+4.6 Additional Information
+• Positions must be actively managed to stay within limits.
+• The manual front-end trading screen can be used as a viewer for the bot
+and will display the current orderbook.
+• Trades must be executed from either the manual trading website or the algorithm. If you want to switch modes (i.e., from algorithm to website), pause the algorithm, then reload the front-end and place trades.
+4.6.1 Scoring
+At the end of the game, team are ranked by final PnL.
+16
+
+5 Gold Rush Auction Game 5.1 Overview
+This trading game simulates a Dutch auction environment where participants bid for different types of train tracks that will help them create optimal paths on a grid-based map. The goal is for each team to strategically bid on and arrange gadgets to form the most valuable path, maximizing their final score based on the value of the point where their train tracks end at.
+Figure 1: Gadgets
+5.2 Game Rules
+In this game, teams are divided into 10 teams, and teams will participate in several rounds of bidding to secure gadgets that they will use to construct their train tracks. Gadgets come in three types:
+• Train Track: Used to build the path on the map.
+• Duplication Token: Allows the team to duplicate a train track that was
+bidded.
+• Rotation Token: Allows the team to rotate a train track to any 90 degree direction when placing it on the map. (rotation tokens must be used after duplication tokens)
+Each team has a starting balance of 100 coins for bidding.
+5.3 Bidding Mechanics
+• Dutch Auction: Each round will be conducted in a Dutch auction style,
+where each team submits a hidden bid for the gadget. After all teams have 17
+ 
+submitted their bids, the auctioneer reveals the bids and the team with the highest bid wins the gadget, but they will pay the second-highest bid price. In case of ties, the winner would be randomly chosen among the highest bids.
+• Bid Limit: A team cannot submit a bid that would use up more than all their coins or exceed their available token count.
+Figure 2: Example Map
+5.4 Map & Gadget Arrangement
+The game map consists of a grid with each point assigned a value. Teams must arrange their gadgets on this grid to form a train path that maximizes the value at the point where the path ends.
+• Starting Point: The train track placement begins from the center of the map.
+18
+ 
+• Train Track Placement: Teams will place their train tracks to form a continuous path. The tracks must connect to each other and cannot overlap or cross.
+• Rotation: Train tracks can only be rotated if the team has a Rotation Token. Each Rotation Token can only be used once, and train tracks cannot be rotated without it.
+• Duplication: Teams can use a Duplication Token to duplicate a train track they have already used.
+• Gadget Usage: Teams do not need to use all the train tracks they bid on.
+5.4.1 Scoring
+Each team’s score is the sum of the remaining coins and the value at the point where their train track path ends. Teams are then ranked by the score.
+5.4.2 Example
+Team A spends 40 coins to bid for two train tracks. They come up with the optimal placement at the end of the game as shown in Figure 3. Their final score is:
+Score = (100 − 40) + 148 = 208
+Figure 3: Example Game
+19
+ 

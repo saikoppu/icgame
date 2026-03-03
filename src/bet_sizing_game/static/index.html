@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bet Sizing Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow bg-glow-a"></div>
+    <div class="bg-glow bg-glow-b"></div>
+
+    <main class="app-shell">
+      <header class="hero">
+        <div class="pill">Multiplayer Bet Sizing 2026</div>
+        <h1>Probability Arena</h1>
+        <p>10 escalating events. Real-time PnL. Top 10 podium.</p>
+      </header>
+
+      <section id="joinCard" class="panel join-panel">
+        <h2>Join Lobby</h2>
+        <p>Game starts automatically when the lobby countdown ends.</p>
+        <form id="joinForm">
+          <input id="nameInput" type="text" minlength="1" maxlength="40" placeholder="Team / Player name" required />
+          <button type="submit">Enter Game</button>
+        </form>
+        <p id="joinError" class="error"></p>
+      </section>
+
+      <section id="gameView" class="hidden">
+        <div class="status-grid">
+          <article class="panel metric">
+            <h3>Bankroll</h3>
+            <p id="bankrollValue">$0.00</p>
+          </article>
+          <article class="panel metric">
+            <h3>PnL</h3>
+            <p id="pnlValue">$0.00</p>
+          </article>
+          <article class="panel metric">
+            <h3>Rank</h3>
+            <p id="rankValue">-</p>
+          </article>
+          <article class="panel metric">
+            <h3>Players</h3>
+            <p id="playerCountValue">0</p>
+          </article>
+        </div>
+
+        <div class="main-grid">
+          <article class="panel event-panel">
+            <div class="event-header">
+              <h2 id="phaseTitle">Lobby</h2>
+              <span id="timerPill" class="timer-pill">--</span>
+            </div>
+            <h3 id="eventTitle">Waiting for players...</h3>
+            <p id="eventDescription">Join now. Everyone receives the same event outcomes in real-time.</p>
+            <div id="eventMeta" class="event-meta"></div>
+
+            <form id="betForm" class="bet-form hidden">
+              <div class="options-wrap" id="optionsWrap"></div>
+              <div class="bet-controls">
+                <label>
+                  Bet Amount ($)
+                  <input id="amountInput" type="number" min="1" step="1" value="50" required />
+                </label>
+                <button type="submit">Place Bet</button>
+              </div>
+            </form>
+            <p id="betStatus" class="info-line"></p>
+          </article>
+
+          <article class="panel leaderboard-panel">
+            <h3>Top 10 Leaderboard</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>PnL</th>
+                  <th>Bankroll</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody"></tbody>
+            </table>
+          </article>
+        </div>
+
+        <div class="main-grid secondary">
+          <article class="panel history-panel">
+            <h3>Your Last 10 Results</h3>
+            <ul id="resultList"></ul>
+          </article>
+
+          <article id="podiumPanel" class="panel podium-panel hidden">
+            <h3>Final Podium</h3>
+            <div id="podiumCards" class="podium-cards"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

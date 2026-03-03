@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gt-market-making-sim"
+version = "0.1.0"
+description = "Georgia Tech Trading Competition Market Making simulation for scenarios 3, 4, and 7"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn>=0.30,<1.0",
+]
+
+[project.scripts]
+gt-mm-sim = "gt_market_making.cli:main"
+bet-sizing-server = "bet_sizing_game.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+bet_sizing_game = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
