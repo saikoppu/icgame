@@ -20,89 +20,264 @@
       <header class="hero">
         <div class="pill">Multiplayer Bet Sizing 2026</div>
         <h1>Probability Arena</h1>
-        <p>10 escalating events. Real-time PnL. Top 10 podium.</p>
+        <p>15 escalating random events. Real-time PnL. Top 10 leaderboard + podium.</p>
       </header>
 
-      <section id="joinCard" class="panel join-panel">
-        <h2>Join Lobby</h2>
-        <p>Game starts automatically when the lobby countdown ends.</p>
-        <form id="joinForm">
-          <input id="nameInput" type="text" minlength="1" maxlength="40" placeholder="Team / Player name" required />
-          <button type="submit">Enter Game</button>
-        </form>
-        <p id="joinError" class="error"></p>
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="playTab">Game</button>
+        <button class="tab-btn" data-tab="rulesTab">Rules</button>
+        <button class="tab-btn" data-tab="adminTab">Admin</button>
+      </nav>
+
+      <section id="playTab" class="tab-pane">
+        <section id="joinCard" class="panel join-panel">
+          <h2>Join Lobby</h2>
+          <p>Game starts automatically when lobby timer ends, or when admin starts it.</p>
+          <form id="joinForm">
+            <input id="nameInput" type="text" minlength="1" maxlength="40" placeholder="Team / Player name" required />
+            <button type="submit">Enter Game</button>
+          </form>
+          <p id="joinError" class="error"></p>
+        </section>
+
+        <section id="gameView" class="hidden">
+          <div class="status-grid">
+            <article class="panel metric">
+              <h3>Bankroll</h3>
+              <p id="bankrollValue">$0.00</p>
+            </article>
+            <article class="panel metric">
+              <h3>PnL</h3>
+              <p id="pnlValue">$0.00</p>
+            </article>
+            <article class="panel metric">
+              <h3>Rank</h3>
+              <p id="rankValue">-</p>
+            </article>
+            <article class="panel metric">
+              <h3>Players</h3>
+              <p id="playerCountValue">0</p>
+            </article>
+          </div>
+
+          <div class="main-grid">
+            <article class="panel event-panel">
+              <div class="event-header">
+                <h2 id="phaseTitle">Lobby</h2>
+                <span id="timerPill" class="timer-pill">--</span>
+              </div>
+              <h3 id="eventTitle">Waiting for players...</h3>
+              <p id="eventDescription">Join now. Everyone gets the same outcomes in real-time.</p>
+              <div id="eventMeta" class="event-meta"></div>
+
+              <form id="betForm" class="bet-form hidden">
+                <div class="options-wrap" id="optionsWrap"></div>
+                <div class="bet-controls">
+                  <label>
+                    Bet Amount ($)
+                    <input id="amountInput" type="number" min="1" step="1" value="50" required />
+                  </label>
+                  <button type="submit">Place Bet</button>
+                </div>
+              </form>
+              <p id="betStatus" class="info-line"></p>
+            </article>
+
+            <article class="panel leaderboard-panel">
+              <h3>Top 10 Leaderboard</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>PnL</th>
+                    <th>Bankroll</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboardBody"></tbody>
+              </table>
+            </article>
+          </div>
+
+          <div class="main-grid secondary">
+            <article class="panel history-panel">
+              <h3>Your Last 15 Results</h3>
+              <ul id="resultList"></ul>
+            </article>
+
+            <article id="podiumPanel" class="panel podium-panel hidden">
+              <h3>Final Podium</h3>
+              <div id="podiumCards" class="podium-cards"></div>
+            </article>
+          </div>
+        </section>
       </section>
 
-      <section id="gameView" class="hidden">
-        <div class="status-grid">
-          <article class="panel metric">
-            <h3>Bankroll</h3>
-            <p id="bankrollValue">$0.00</p>
-          </article>
-          <article class="panel metric">
-            <h3>PnL</h3>
-            <p id="pnlValue">$0.00</p>
-          </article>
-          <article class="panel metric">
-            <h3>Rank</h3>
-            <p id="rankValue">-</p>
-          </article>
-          <article class="panel metric">
-            <h3>Players</h3>
-            <p id="playerCountValue">0</p>
-          </article>
-        </div>
+      <section id="rulesTab" class="tab-pane hidden">
+        <article class="panel">
+          <h2>Rules</h2>
+          <ul id="rulesList"></ul>
+        </article>
+        <article class="panel">
+          <h3>Event Schedule (15 total)</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Probability (Yes)</th>
+                <th>Timer</th>
+              </tr>
+            </thead>
+            <tbody id="rulesEventsBody"></tbody>
+          </table>
+        </article>
+      </section>
 
-        <div class="main-grid">
-          <article class="panel event-panel">
-            <div class="event-header">
-              <h2 id="phaseTitle">Lobby</h2>
-              <span id="timerPill" class="timer-pill">--</span>
-            </div>
-            <h3 id="eventTitle">Waiting for players...</h3>
-            <p id="eventDescription">Join now. Everyone receives the same event outcomes in real-time.</p>
-            <div id="eventMeta" class="event-meta"></div>
+      <section id="adminTab" class="tab-pane hidden">
+        <article class="panel admin-auth">
+          <h2>Admin Pane</h2>
+          <p>Use the admin key to manage rounds, timers, events, and game lifecycle.</p>
+          <div class="admin-auth-row">
+            <input id="adminKeyInput" type="password" placeholder="Admin key" />
+            <button id="adminConnectBtn" type="button">Connect Admin</button>
+          </div>
+          <p id="adminStatus" class="info-line"></p>
+        </article>
 
-            <form id="betForm" class="bet-form hidden">
-              <div class="options-wrap" id="optionsWrap"></div>
-              <div class="bet-controls">
-                <label>
-                  Bet Amount ($)
-                  <input id="amountInput" type="number" min="1" step="1" value="50" required />
-                </label>
-                <button type="submit">Place Bet</button>
+        <section id="adminControls" class="hidden">
+          <div class="main-grid secondary">
+            <article class="panel">
+              <h3>Game Controls</h3>
+              <div class="control-row">
+                <button id="adminStartBtn" type="button">Start Now</button>
+                <button id="adminAdvanceBtn" type="button">Advance / Resolve</button>
+                <button id="adminPauseBtn" type="button">Pause Timer</button>
+                <button id="adminResumeBtn" type="button">Resume Timer</button>
               </div>
-            </form>
-            <p id="betStatus" class="info-line"></p>
-          </article>
+              <div class="control-row">
+                <button id="adminRestartBtn" type="button">Restart Game</button>
+                <label class="inline-label">
+                  <input id="adminClearPlayers" type="checkbox" checked />
+                  Clear players on restart
+                </label>
+              </div>
+              <div class="control-row">
+                <label>
+                  New Seed (optional)
+                  <input id="adminSeedInput" type="number" step="1" placeholder="2026" />
+                </label>
+                <button id="adminDownloadBtn" type="button">Download State JSON</button>
+              </div>
+            </article>
 
-          <article class="panel leaderboard-panel">
-            <h3>Top 10 Leaderboard</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Name</th>
-                  <th>PnL</th>
-                  <th>Bankroll</th>
-                </tr>
-              </thead>
-              <tbody id="leaderboardBody"></tbody>
-            </table>
-          </article>
-        </div>
+            <article class="panel">
+              <h3>Global Settings (Lobby only)</h3>
+              <form id="adminSettingsForm">
+                <div class="admin-grid">
+                  <label>
+                    Lobby Seconds
+                    <input id="adminLobbySeconds" type="number" min="5" />
+                  </label>
+                  <label>
+                    Starting Bankroll
+                    <input id="adminStartingBankroll" type="number" min="1" />
+                  </label>
+                  <label>
+                    Round Stipend
+                    <input id="adminRoundStipend" type="number" min="0" />
+                  </label>
+                  <label>
+                    Set All Event Timers
+                    <input id="adminUniformEventSeconds" type="number" min="5" />
+                  </label>
+                </div>
+                <button type="submit">Save Settings</button>
+              </form>
+            </article>
+          </div>
 
-        <div class="main-grid secondary">
-          <article class="panel history-panel">
-            <h3>Your Last 10 Results</h3>
-            <ul id="resultList"></ul>
-          </article>
+          <div class="main-grid secondary">
+            <article class="panel">
+              <h3>Edit Event (Lobby only)</h3>
+              <form id="adminEventForm">
+                <label>
+                  Event
+                  <select id="adminEventSelect"></select>
+                </label>
+                <label>
+                  Title
+                  <input id="adminEventTitle" type="text" maxlength="140" />
+                </label>
+                <label>
+                  Description
+                  <textarea id="adminEventDescription" rows="3" maxlength="400"></textarea>
+                </label>
+                <div class="admin-grid">
+                  <label>
+                    Yes Label
+                    <input id="adminYesLabel" type="text" maxlength="40" />
+                  </label>
+                  <label>
+                    No Label
+                    <input id="adminNoLabel" type="text" maxlength="40" />
+                  </label>
+                  <label>
+                    Yes Probability (0..1)
+                    <input id="adminYesProbability" type="number" min="0.001" max="0.999" step="0.001" />
+                  </label>
+                  <label>
+                    Timer Seconds
+                    <input id="adminEventSeconds" type="number" min="5" />
+                  </label>
+                </div>
+                <button type="submit">Update Event</button>
+              </form>
+            </article>
 
-          <article id="podiumPanel" class="panel podium-panel hidden">
-            <h3>Final Podium</h3>
-            <div id="podiumCards" class="podium-cards"></div>
-          </article>
-        </div>
+            <article class="panel">
+              <h3>Replace Entire Event Set (Advanced)</h3>
+              <p>Paste JSON array with fields: title, description, yes_label, no_label, yes_probability, bet_window_seconds.</p>
+              <textarea id="adminReplaceEventsJson" rows="12"></textarea>
+              <button id="adminReplaceEventsBtn" type="button">Replace All Events</button>
+            </article>
+          </div>
+
+          <div class="main-grid secondary">
+            <article class="panel">
+              <h3>Full Leaderboard</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>PnL</th>
+                    <th>Bankroll</th>
+                    <th>Current Bet</th>
+                  </tr>
+                </thead>
+                <tbody id="adminLeaderboardBody"></tbody>
+              </table>
+            </article>
+
+            <article class="panel">
+              <h3>Event Results</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Outcome</th>
+                    <th>Bets</th>
+                    <th>Wagered</th>
+                  </tr>
+                </thead>
+                <tbody id="adminResultsBody"></tbody>
+              </table>
+            </article>
+          </div>
+        </section>
       </section>
     </main>
 

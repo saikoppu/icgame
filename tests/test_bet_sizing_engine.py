@@ -19,7 +19,7 @@ def single_event_game() -> GameEngine:
             BetOption(key="no", label="NO", probability=0.0, payout_multiplier=1.0),
         ),
     )
-    return GameEngine(seed=11, lobby_seconds=1, starting_bankroll=100, round_stipend=10, events=[event])
+    return GameEngine(seed=11, lobby_seconds=1, starting_bankroll=100, round_stipend=0, events=[event])
 
 
 def test_join_name_deduplication() -> None:
@@ -42,17 +42,17 @@ def test_round_progression_and_pnl() -> None:
 
     assert engine.phase == "running"
     assert engine.current_event is not None
-    assert player.bankroll == 110
-    assert player.contributions == 110
+    assert player.bankroll == 100
+    assert player.contributions == 100
 
     engine.place_bet(player.token, option_key="yes", amount=10)
-    assert player.bankroll == 100
+    assert player.bankroll == 90
 
     engine.event_deadline = now
     engine.advance_clock(now)
 
     assert engine.phase == "finished"
-    assert player.bankroll == 120
+    assert player.bankroll == 110
     assert round(player.pnl, 2) == 10.0
     assert player.results[0].pnl_delta == 10.0
 
@@ -67,3 +67,9 @@ def test_join_rejected_after_start() -> None:
 
     with pytest.raises(ValueError):
         engine.join_player("Late")
+
+
+def test_default_game_is_15_events_with_zero_round_stipend() -> None:
+    engine = GameEngine()
+    assert len(engine.events) == 15
+    assert engine.round_stipend == 0

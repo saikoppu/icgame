@@ -14,7 +14,12 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=2026, help="Random seed for event outcomes")
     parser.add_argument("--lobby-seconds", type=int, default=30, help="Lobby countdown before round 1 starts")
     parser.add_argument("--starting-bankroll", type=int, default=1000, help="Starting bankroll for each player")
-    parser.add_argument("--round-stipend", type=int, default=100, help="Cash injected at the start of each event")
+    parser.add_argument("--round-stipend", type=int, default=0, help="Cash injected at the start of each event")
+    parser.add_argument(
+        "--admin-key",
+        default="change-me-admin-key",
+        help="Shared secret required for /api/admin/* endpoints",
+    )
     args = parser.parse_args()
 
     app = create_app(
@@ -22,6 +27,7 @@ def main() -> None:
         lobby_seconds=args.lobby_seconds,
         starting_bankroll=args.starting_bankroll,
         round_stipend=args.round_stipend,
+        admin_key=args.admin_key,
     )
 
     uvicorn.run(app, host=args.host, port=args.port)

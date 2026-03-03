@@ -51,20 +51,23 @@ where `x` is team PnL and `C` is taker bot loss amount.
 
 This repo also includes a realtime multiplayer web game for probabilistic betting competitions:
 
-- 10 escalating events with binary options and transparent probabilities/payout multipliers
+- 15 escalating events with binary options and transparent probabilities/payout multipliers
 - Realtime websocket updates (bankroll, PnL, rankings, timer)
 - Automatic lobby countdown and round progression
-- Round stipend injection (`$100` default) before each event
+- Random server-side event outcomes shared by all players
+- No automatic bankroll injection between rounds by default (`round_stipend=0`)
 - Final top-10 leaderboard and podium
+- Built-in admin pane for controlling timers, events, lifecycle, and full leaderboard/results
 
 ### Run the server
 
 ```bash
 python3 -m pip install -e .
-bet-sizing-server --host 0.0.0.0 --port 8000 --seed 2026
+bet-sizing-server --host 0.0.0.0 --port 8000 --seed 2026 --admin-key "change-this"
 ```
 
 Open `http://localhost:8000` from multiple browsers/devices.
+Open the `Admin` tab in the app and enter the same admin key.
 
 ### Game runtime options
 
@@ -74,14 +77,15 @@ bet-sizing-server \
   --port 8000 \
   --lobby-seconds 30 \
   --starting-bankroll 1000 \
-  --round-stipend 100
+  --round-stipend 0 \
+  --admin-key "change-this"
 ```
 
 ### Docker hosting (single instance)
 
 ```bash
 docker build -t bet-sizing-game .
-docker run --rm -p 8000:8000 bet-sizing-game
+docker run --rm -p 8000:8000 bet-sizing-game --admin-key "change-this"
 ```
 
 This single-instance websocket server is suitable for 100+ concurrent players on a modest VM/container.
