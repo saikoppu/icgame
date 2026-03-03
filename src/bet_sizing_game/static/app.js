@@ -88,6 +88,10 @@ const appState = {
   },
 };
 
+const APP_VERSION = "20260303e";
+const TOKEN_KEY = `bet-game-token-${APP_VERSION}`;
+const ADMIN_KEY = `bet-game-admin-key-${APP_VERSION}`;
+
 function on(el, eventName, handler) {
   if (el) {
     el.addEventListener(eventName, handler);
@@ -142,7 +146,7 @@ function resetSession() {
     appState.ws.close();
     appState.ws = null;
   }
-  localStorage.removeItem("bet-game-token");
+  localStorage.removeItem(TOKEN_KEY);
   joinCard.classList.remove("hidden");
   gameView.classList.add("hidden");
 }
@@ -443,8 +447,8 @@ async function join(name, code) {
       throw new Error(payload.detail || payload.error || "Failed to join.");
     }
 
-    appState.token = payload.token;
-    localStorage.setItem("bet-game-token", payload.token);
+  appState.token = payload.token;
+  localStorage.setItem(TOKEN_KEY, payload.token);
     joinCard.classList.add("hidden");
     gameView.classList.remove("hidden");
     renderState(payload.state);
@@ -796,7 +800,7 @@ on(adminConnectBtn, "click", async () => {
   }
 
   appState.admin.key = key;
-  localStorage.setItem("bet-game-admin-key", key);
+  localStorage.setItem(ADMIN_KEY, key);
 
   try {
     await refreshAdminState();
@@ -970,7 +974,11 @@ on(adminReplaceFermiBtn, "click", async () => {
   }
 });
 
-const storedToken = localStorage.getItem("bet-game-token");
+// Clear legacy keys from older builds so stale sessions do not break refresh.
+localStorage.removeItem("bet-game-token");
+localStorage.removeItem("bet-game-admin-key");
+
+const storedToken = localStorage.getItem(TOKEN_KEY);
 if (storedToken) {
   appState.token = storedToken;
   joinCard.classList.add("hidden");
@@ -979,7 +987,7 @@ if (storedToken) {
   connectSocket();
 }
 
-const storedAdminKey = localStorage.getItem("bet-game-admin-key");
+const storedAdminKey = localStorage.getItem(ADMIN_KEY);
 if (storedAdminKey) {
   adminKeyInput.value = storedAdminKey;
 }
