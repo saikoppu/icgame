@@ -111,6 +111,12 @@ function setActiveTab(tabId) {
   }
 }
 
+function on(el, eventName, handler) {
+  if (el) {
+    el.addEventListener(eventName, handler);
+  }
+}
+
 function resetSession() {
   appState.token = null;
   if (appState.ws) {
@@ -565,6 +571,7 @@ async function adminAction(path, method = "POST", bodyObj = null) {
   } else {
     await refreshAdminState();
   }
+  setAdminStatus("Action applied.");
 }
 
 function downloadJson(filename, data) {
@@ -580,10 +587,10 @@ function downloadJson(filename, data) {
 }
 
 tabButtons.forEach((btn) => {
-  btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
+  on(btn, "click", () => setActiveTab(btn.dataset.tab));
 });
 
-joinForm.addEventListener("submit", (event) => {
+on(joinForm, "submit", (event) => {
   event.preventDefault();
   const name = nameInput.value.trim();
   if (!name) {
@@ -593,7 +600,7 @@ joinForm.addEventListener("submit", (event) => {
   join(name);
 });
 
-betForm.addEventListener("submit", (event) => {
+on(betForm, "submit", (event) => {
   event.preventDefault();
   if (!appState.ws || appState.ws.readyState !== WebSocket.OPEN) {
     betStatus.textContent = "Connection is not ready yet.";
@@ -627,7 +634,7 @@ betForm.addEventListener("submit", (event) => {
   betStatus.className = "info-line";
 });
 
-adminConnectBtn.addEventListener("click", async () => {
+on(adminConnectBtn, "click", async () => {
   const key = adminKeyInput.value.trim();
   if (!key) {
     setAdminStatus("Enter admin key.", true);
@@ -655,7 +662,7 @@ adminConnectBtn.addEventListener("click", async () => {
   }
 });
 
-adminStartBtn.addEventListener("click", async () => {
+on(adminStartBtn, "click", async () => {
   try {
     await adminAction("/api/admin/start");
   } catch (err) {
@@ -663,7 +670,7 @@ adminStartBtn.addEventListener("click", async () => {
   }
 });
 
-adminAdvanceBtn.addEventListener("click", async () => {
+on(adminAdvanceBtn, "click", async () => {
   try {
     await adminAction("/api/admin/advance");
   } catch (err) {
@@ -671,7 +678,7 @@ adminAdvanceBtn.addEventListener("click", async () => {
   }
 });
 
-adminPauseBtn.addEventListener("click", async () => {
+on(adminPauseBtn, "click", async () => {
   try {
     await adminAction("/api/admin/pause");
   } catch (err) {
@@ -679,7 +686,7 @@ adminPauseBtn.addEventListener("click", async () => {
   }
 });
 
-adminResumeBtn.addEventListener("click", async () => {
+on(adminResumeBtn, "click", async () => {
   try {
     await adminAction("/api/admin/resume");
   } catch (err) {
@@ -687,7 +694,7 @@ adminResumeBtn.addEventListener("click", async () => {
   }
 });
 
-adminRestartBtn.addEventListener("click", async () => {
+on(adminRestartBtn, "click", async () => {
   try {
     await adminAction("/api/admin/restart", "POST", {
       new_seed: toMaybeNumber(adminSeedInput.value),
@@ -698,7 +705,7 @@ adminRestartBtn.addEventListener("click", async () => {
   }
 });
 
-adminDownloadBtn.addEventListener("click", () => {
+on(adminDownloadBtn, "click", () => {
   if (!appState.admin.state) {
     setAdminStatus("No admin state yet.", true);
     return;
@@ -706,7 +713,7 @@ adminDownloadBtn.addEventListener("click", () => {
   downloadJson(`bet-game-admin-state-${Date.now()}.json`, appState.admin.state);
 });
 
-adminSettingsForm.addEventListener("submit", async (event) => {
+on(adminSettingsForm, "submit", async (event) => {
   event.preventDefault();
   const body = {};
   const lobbySeconds = toMaybeNumber(adminLobbySeconds.value);
@@ -734,11 +741,11 @@ adminSettingsForm.addEventListener("submit", async (event) => {
   }
 });
 
-adminEventSelect.addEventListener("change", () => {
+on(adminEventSelect, "change", () => {
   fillEventEditorFromSelection(appState.admin.state?.events || []);
 });
 
-adminEventForm.addEventListener("submit", async (event) => {
+on(adminEventForm, "submit", async (event) => {
   event.preventDefault();
   const eventId = Number(adminEventSelect.value);
   if (!eventId) {
@@ -762,7 +769,7 @@ adminEventForm.addEventListener("submit", async (event) => {
   }
 });
 
-adminReplaceEventsBtn.addEventListener("click", async () => {
+on(adminReplaceEventsBtn, "click", async () => {
   try {
     const parsed = JSON.parse(adminReplaceEventsJson.value || "[]");
     if (!Array.isArray(parsed)) {
@@ -788,6 +795,7 @@ if (storedAdminKey) {
   adminKeyInput.value = storedAdminKey;
 }
 
+setActiveTab("playTab");
 fetchPublicConfig();
 setInterval(fetchPublicConfig, 15000);
 setInterval(syncState, 5000);
