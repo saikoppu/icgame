@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@400;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/static/styles.css?v=20260303e" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260314b" />
   </head>
   <body>
     <div class="bg-glow bg-glow-a"></div>
@@ -18,9 +18,9 @@
 
     <main class="app-shell">
       <header class="hero">
-        <div class="pill">Multiplayer Bet Sizing 2026</div>
-        <h1>Probability Arena + Fermi Finals</h1>
-        <p>12 betting rounds + 5 GT Fermi questions, with full leaderboard visibility.</p>
+        <div class="pill">Single-Player Bet Sizing 2026</div>
+        <h1>Probability Arena</h1>
+        <p>15 betting rounds with power cards, ranked by final bankroll.</p>
       </header>
 
       <nav class="tab-nav">
@@ -32,10 +32,9 @@
       <section id="playTab" class="tab-pane">
         <section id="joinCard" class="panel join-panel">
           <h2>Join Lobby</h2>
-          <p>Admin controls game start. Enter your player name and lobby code to join.</p>
+          <p>Enter your player name to join. You can start the game from the lobby.</p>
           <form id="joinForm">
             <input id="nameInput" type="text" minlength="1" maxlength="40" placeholder="Player name" required />
-            <input id="codeInput" type="text" minlength="1" maxlength="64" placeholder="Lobby code" required />
             <button type="submit">Enter Game</button>
           </form>
           <p id="joinError" class="error"></p>
@@ -51,34 +50,47 @@
               <h3>PnL</h3>
               <p id="pnlValue">$0.00</p>
             </article>
-            <article class="panel metric">
-              <h3>Rank</h3>
-              <p id="rankValue">-</p>
-            </article>
-            <article class="panel metric">
-              <h3>Players</h3>
-              <p id="playerCountValue">0</p>
-            </article>
           </div>
 
           <div class="main-grid">
             <article class="panel event-panel">
               <div class="event-header">
                 <h2 id="phaseTitle">Lobby</h2>
-                <span id="timerPill" class="timer-pill">--</span>
+                <div class="event-header-actions">
+                  <span id="timerPill" class="timer-pill">--</span>
+                  <button id="startGameBtn" class="hidden" type="button">Start Game</button>
+                </div>
               </div>
-              <h3 id="eventTitle">Waiting for admin...</h3>
-              <p id="eventDescription">Admin will start the game once everyone is in.</p>
+              <h3 id="eventTitle">Ready to Start</h3>
+              <p id="eventDescription">Press Start Game when you are ready to begin.</p>
               <div id="eventMeta" class="event-meta"></div>
 
               <form id="betForm" class="bet-form hidden">
-                <div class="options-wrap" id="optionsWrap"></div>
                 <div class="bet-controls">
                   <label>
+                    Posted Odds
+                    <input id="oddsDisplayInput" type="text" disabled />
+                  </label>
+                  <label>
                     Bet Amount ($)
-                    <input id="amountInput" type="number" min="1" step="1" value="50" required />
+                    <input id="amountInput" type="number" min="0" step="0.01" value="50" required />
                   </label>
                   <button type="submit">Place Bet</button>
+                </div>
+                <div class="bet-controls">
+                  <label class="inline-label">
+                    <input id="doubleDownInput" type="checkbox" />
+                    Double Down
+                  </label>
+                  <label class="inline-label">
+                    <input id="insuranceInput" type="checkbox" />
+                    Insurance
+                  </label>
+                  <label class="inline-label">
+                    <input id="volatilityInput" type="checkbox" />
+                    Volatility
+                  </label>
+                  <span id="powerCardStatus" class="event-chip"></span>
                 </div>
               </form>
 
@@ -94,32 +106,16 @@
 
               <p id="betStatus" class="info-line"></p>
             </article>
-
-            <article class="panel leaderboard-panel">
-              <h3>Leaderboard (All Players)</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>PnL</th>
-                    <th>Bankroll</th>
-                    <th>Busts</th>
-                  </tr>
-                </thead>
-                <tbody id="leaderboardBody"></tbody>
-              </table>
-            </article>
           </div>
 
           <div class="main-grid secondary">
             <article class="panel history-panel">
-              <h3>Recent Results</h3>
+              <h3>Trade History</h3>
               <ul id="resultList"></ul>
             </article>
 
             <article id="podiumPanel" class="panel podium-panel hidden">
-              <h3>Final Podium</h3>
+              <h3>Final Bankroll Summary</h3>
               <div id="podiumCards" class="podium-cards"></div>
             </article>
           </div>
@@ -129,33 +125,7 @@
       <section id="rulesTab" class="tab-pane hidden">
         <article class="panel">
           <h2>Rules</h2>
-          <ul id="rulesList"></ul>
-        </article>
-        <article class="panel">
-          <h3>Betting Events</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Timer</th>
-              </tr>
-            </thead>
-            <tbody id="rulesEventsBody"></tbody>
-          </table>
-        </article>
-        <article class="panel">
-          <h3>Fermi Questions</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Prompt</th>
-                <th>Timer</th>
-              </tr>
-            </thead>
-            <tbody id="rulesFermiBody"></tbody>
-          </table>
+          <div id="rulesContent" class="rules-content"></div>
         </article>
       </section>
 
@@ -201,10 +171,6 @@
               <form id="adminSettingsForm">
                 <div class="admin-grid">
                   <label>
-                    Join Code
-                    <input id="adminAccessCode" type="text" />
-                  </label>
-                  <label>
                     Starting Bankroll
                     <input id="adminStartingBankroll" type="number" min="1" />
                   </label>
@@ -248,16 +214,16 @@
                 </label>
                 <div class="admin-grid">
                   <label>
-                    Yes Label
-                    <input id="adminYesLabel" type="text" maxlength="40" />
+                    True Probability (0..1)
+                    <input id="adminTrueProbability" type="number" min="0.01" max="0.99" step="0.001" />
                   </label>
                   <label>
-                    No Label
-                    <input id="adminNoLabel" type="text" maxlength="40" />
+                    Odds Numerator
+                    <input id="adminOddsNumerator" type="number" min="0.01" step="0.01" />
                   </label>
                   <label>
-                    Yes Probability (0..1)
-                    <input id="adminYesProbability" type="number" min="0.01" max="0.99" step="0.001" />
+                    Odds Denominator
+                    <input id="adminOddsDenominator" type="number" min="0.01" step="0.01" />
                   </label>
                   <label>
                     Timer Seconds
@@ -313,24 +279,6 @@
 
           <div class="main-grid secondary">
             <article class="panel">
-              <h3>Full Leaderboard</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Name</th>
-                    <th>PnL</th>
-                    <th>Bankroll</th>
-                    <th>Busts</th>
-                    <th>Live Bet</th>
-                    <th>Live Fermi</th>
-                  </tr>
-                </thead>
-                <tbody id="adminLeaderboardBody"></tbody>
-              </table>
-            </article>
-
-            <article class="panel">
               <h3>Round Status</h3>
               <table>
                 <thead>
@@ -349,6 +297,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=20260303e" defer></script>
+    <script src="/static/app.js?v=20260314b" defer></script>
   </body>
 </html>

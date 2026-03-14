@@ -16,7 +16,6 @@ from .engine import GameEngine
 
 class JoinRequest(BaseModel):
     name: str = Field(min_length=1, max_length=40)
-    code: str = Field(min_length=1, max_length=64)
 
 
 class AdminSettingsUpdateRequest(BaseModel):
@@ -32,9 +31,9 @@ class AdminSettingsUpdateRequest(BaseModel):
 class AdminEventUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=140)
     description: str | None = Field(default=None, min_length=1, max_length=500)
-    yes_label: str | None = Field(default=None, min_length=1, max_length=40)
-    no_label: str | None = Field(default=None, min_length=1, max_length=40)
-    yes_probability: float | None = Field(default=None, gt=0.0, lt=1.0)
+    true_probability: float | None = Field(default=None, gt=0.0, lt=1.0)
+    odds_numerator: float | None = Field(default=None, gt=0.0)
+    odds_denominator: float | None = Field(default=None, gt=0.0)
     bet_window_seconds: int | None = Field(default=None, ge=5, le=3_600)
 
 
@@ -102,15 +101,22 @@ class GameServer:
         @app.get("/api/events")
         async def events() -> dict[str, Any]:
             return {
-                "events": self.engine.event_catalog(include_sensitive=False),
-                "fermi_questions": self.engine.fermi_catalog(include_answers=False),
                 "lobby_seconds": self.engine.lobby_seconds,
                 "starting_bankroll": self.engine.starting_bankroll,
                 "round_stipend": self.engine.round_stipend,
                 "bust_rebuy_amount": self.engine.bust_rebuy_amount,
+                "max_players": self.engine.max_players,
+                "double_down_uses": self.engine.double_down_uses,
+                "insurance_uses": self.engine.insurance_uses,
+                "volatility_uses": self.engine.volatility_uses,
+                "volatility_hold_cost": self.engine.volatility_hold_cost,
+                "insurance_premium_pct": self.engine.insurance_premium_pct,
+                "insurance_refund_pct": self.engine.insurance_refund_pct,
+                "event_count": len(self.engine.events),
+                "fermi_count": len(self.engine.fermi_questions),
                 "random_outcomes": True,
-                "admin_start_required": True,
-                "requires_access_code": True,
+                "admin_start_required": False,
+                "requires_access_code": False,
                 "rules": self.engine.rules,
             }
 
@@ -118,7 +124,7 @@ class GameServer:
         async def join(payload: JoinRequest) -> dict[str, Any]:
             async with self.lock:
                 try:
-                    player = self.engine.join_player(payload.name, payload.code)
+                    player = self.engine.join_player(payload.name)
                 except ValueError as exc:
                     raise HTTPException(status_code=400, detail=str(exc)) from exc
                 state = self.engine.public_state_for(player.token)
@@ -209,9 +215,9 @@ class GameServer:
                         event_id,
                         title=payload.title,
                         description=payload.description,
-                        yes_label=payload.yes_label,
-                        no_label=payload.no_label,
-                        yes_probability=payload.yes_probability,
+                        true_probability=payload.true_probability,
+                        odds_numerator=payload.odds_numerator,
+                        odds_denominator=payload.odds_denominator,
                         bet_window_seconds=payload.bet_window_seconds,
                     )
                 except ValueError as exc:
@@ -293,15 +299,31 @@ class GameServer:
 
                     msg_type = msg.get("type")
                     if msg_type == "place_bet":
-                        option = str(msg.get("option", ""))
                         try:
-                            amount = int(msg.get("amount", 0))
+                            amount = float(msg.get("amount", 0))
                         except (TypeError, ValueError):
-                            await websocket.send_json({"type": "error", "message": "Amount must be an integer."})
+                            await websocket.send_json({"type": "error", "message": "Amount must be a number."})
                             continue
+                        use_double_down = bool(msg.get("use_double_down", False))
+                        use_insurance = bool(msg.get("use_insurance", False))
+                        use_volatility = bool(msg.get("use_volatility", False))
                         try:
                             async with self.lock:
-                                self.engine.place_bet(token=token, option_key=option, amount=amount)
+                                self.engine.place_bet(
+                                    token=token,
+                                    amount=amount,
+                                    use_double_down=use_double_down,
+                                    use_insurance=use_insurance,
+                                    use_volatility=use_volatility,
+                                )
+                        except ValueError as exc:
+                            await websocket.send_json({"type": "error", "message": str(exc)})
+                            continue
+                        await self.broadcast_all_states()
+                    elif msg_type == "start_game":
+                        try:
+                            async with self.lock:
+                                self.engine.force_start()
                         except ValueError as exc:
                             await websocket.send_json({"type": "error", "message": str(exc)})
                             continue
@@ -392,6 +414,7 @@ def create_app(
     round_stipend: int = 0,
     bust_rebuy_amount: int = 500,
     access_code: str = "quant",
+    max_players: int = 1,
     admin_key: str = "change-me-admin-key",
 ) -> FastAPI:
     engine = GameEngine(
@@ -401,6 +424,7 @@ def create_app(
         round_stipend=round_stipend,
         bust_rebuy_amount=bust_rebuy_amount,
         access_code=access_code,
+        max_players=max_players,
     )
     server = GameServer(engine, admin_key=admin_key)
     return server.app

@@ -2,32 +2,31 @@ const joinCard = document.getElementById("joinCard");
 const gameView = document.getElementById("gameView");
 const joinForm = document.getElementById("joinForm");
 const nameInput = document.getElementById("nameInput");
-const codeInput = document.getElementById("codeInput");
 const joinError = document.getElementById("joinError");
 
 const bankrollValue = document.getElementById("bankrollValue");
 const pnlValue = document.getElementById("pnlValue");
-const rankValue = document.getElementById("rankValue");
-const playerCountValue = document.getElementById("playerCountValue");
 const phaseTitle = document.getElementById("phaseTitle");
 const timerPill = document.getElementById("timerPill");
+const startGameBtn = document.getElementById("startGameBtn");
 const eventTitle = document.getElementById("eventTitle");
 const eventDescription = document.getElementById("eventDescription");
 const eventMeta = document.getElementById("eventMeta");
 const betForm = document.getElementById("betForm");
 const fermiForm = document.getElementById("fermiForm");
-const optionsWrap = document.getElementById("optionsWrap");
+const oddsDisplayInput = document.getElementById("oddsDisplayInput");
 const amountInput = document.getElementById("amountInput");
+const doubleDownInput = document.getElementById("doubleDownInput");
+const insuranceInput = document.getElementById("insuranceInput");
+const volatilityInput = document.getElementById("volatilityInput");
+const powerCardStatus = document.getElementById("powerCardStatus");
 const fermiGuessInput = document.getElementById("fermiGuessInput");
 const betStatus = document.getElementById("betStatus");
-const leaderboardBody = document.getElementById("leaderboardBody");
 const resultList = document.getElementById("resultList");
 const podiumPanel = document.getElementById("podiumPanel");
 const podiumCards = document.getElementById("podiumCards");
 
-const rulesList = document.getElementById("rulesList");
-const rulesEventsBody = document.getElementById("rulesEventsBody");
-const rulesFermiBody = document.getElementById("rulesFermiBody");
+const rulesContent = document.getElementById("rulesContent");
 
 const tabButtons = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
@@ -46,7 +45,6 @@ const adminSeedInput = document.getElementById("adminSeedInput");
 const adminDownloadBtn = document.getElementById("adminDownloadBtn");
 
 const adminSettingsForm = document.getElementById("adminSettingsForm");
-const adminAccessCode = document.getElementById("adminAccessCode");
 const adminStartingBankroll = document.getElementById("adminStartingBankroll");
 const adminBustRebuy = document.getElementById("adminBustRebuy");
 const adminRoundStipend = document.getElementById("adminRoundStipend");
@@ -57,9 +55,9 @@ const adminEventForm = document.getElementById("adminEventForm");
 const adminEventSelect = document.getElementById("adminEventSelect");
 const adminEventTitle = document.getElementById("adminEventTitle");
 const adminEventDescription = document.getElementById("adminEventDescription");
-const adminYesLabel = document.getElementById("adminYesLabel");
-const adminNoLabel = document.getElementById("adminNoLabel");
-const adminYesProbability = document.getElementById("adminYesProbability");
+const adminTrueProbability = document.getElementById("adminTrueProbability");
+const adminOddsNumerator = document.getElementById("adminOddsNumerator");
+const adminOddsDenominator = document.getElementById("adminOddsDenominator");
 const adminEventSeconds = document.getElementById("adminEventSeconds");
 
 const adminFermiForm = document.getElementById("adminFermiForm");
@@ -88,7 +86,7 @@ const appState = {
   },
 };
 
-const APP_VERSION = "20260303e";
+const APP_VERSION = "20260314b";
 const TOKEN_KEY = `bet-game-token-${APP_VERSION}`;
 const ADMIN_KEY = `bet-game-admin-key-${APP_VERSION}`;
 
@@ -157,24 +155,7 @@ function setAdminStatus(text, isError = false) {
 }
 
 function renderLeaderboard(rows) {
-  clearElement(leaderboardBody);
-  for (const row of rows || []) {
-    const tr = document.createElement("tr");
-    const rankTd = document.createElement("td");
-    rankTd.textContent = row.rank;
-    const nameTd = document.createElement("td");
-    nameTd.textContent = row.name;
-    const pnlTd = document.createElement("td");
-    pnlTd.textContent = formatMoney(row.pnl);
-    pnlTd.className = Number(row.pnl) >= 0 ? "pnl-up" : "pnl-down";
-    const bankTd = document.createElement("td");
-    bankTd.textContent = formatMoney(row.bankroll);
-    const bustTd = document.createElement("td");
-    bustTd.textContent = String(row.bust_count || 0);
-
-    tr.append(rankTd, nameTd, pnlTd, bankTd, bustTd);
-    leaderboardBody.appendChild(tr);
-  }
+  void rows;
 }
 
 function renderResults(results, fermiResults) {
@@ -188,25 +169,41 @@ function renderResults(results, fermiResults) {
     merged.push({ type: "fermi", data: item });
   }
 
-  const reversed = merged.reverse().slice(0, 20);
-  if (!reversed.length) {
+  const isFinished = appState.latest?.phase === "finished";
+  const rows = isFinished ? merged : merged.slice(-10).reverse();
+
+  if (!rows.length) {
     const li = document.createElement("li");
     li.textContent = "No resolved rounds yet.";
     resultList.appendChild(li);
     return;
   }
 
-  for (const row of reversed) {
+  for (const row of rows) {
     const li = document.createElement("li");
     if (row.type === "event") {
       const delta = Number(row.data.pnl_delta || 0);
-      li.textContent = `Event ${row.data.event_id}: ${delta >= 0 ? "+" : ""}${formatMoney(delta)} | Bankroll ${formatMoney(
-        row.data.bankroll_after,
-      )}${row.data.rebuy_applied ? " | Bust reset to $500" : ""}`;
+      const outcome = row.data.outcome_hit ? "HIT" : "MISS";
+      const powerFlags = [];
+      if (row.data.double_down_used) powerFlags.push("DoubleDown");
+      if (row.data.insurance_used) powerFlags.push("Insured");
+      if (row.data.volatility_used) {
+        const mult = row.data.volatility_multiplier ? `x${Number(row.data.volatility_multiplier).toFixed(2)}` : "x?";
+        powerFlags.push(`Volatility ${mult}`);
+      }
+      const powerTag = powerFlags.length ? ` | ${powerFlags.join("+")}` : "";
+      const carryTag = Number(row.data.volatility_carry_cost || 0) > 0
+        ? ` | Carry ${formatMoney(row.data.volatility_carry_cost)}`
+        : "";
+      li.textContent = `Event ${row.data.event_id}: Bet ${formatMoney(row.data.bet_amount)}${powerTag} | ${outcome} | Delta ${
+        delta >= 0 ? "+" : ""
+      }${formatMoney(delta)}${carryTag} | Bankroll ${formatMoney(row.data.bankroll_after)}${row.data.rebuy_applied ? " | Bust reset to $500" : ""}`;
       li.className = delta >= 0 ? "pnl-up" : "pnl-down";
     } else {
       const boost = Number(row.data.boost_pct || 0) * 100;
-      li.textContent = `Fermi ${row.data.question_id}: boost ${boost.toFixed(1)}% | Bankroll ${formatMoney(row.data.bankroll_after)}`;
+      li.textContent = `Fermi ${row.data.question_id}: Guess ${
+        row.data.guess === null || row.data.guess === undefined ? "-" : row.data.guess
+      } | Boost ${boost.toFixed(1)}% | Bankroll ${formatMoney(row.data.bankroll_after)}`;
       li.className = boost > 0 ? "pnl-up" : "";
     }
     resultList.appendChild(li);
@@ -224,39 +221,10 @@ function renderPodium(podiumRows) {
     const p1 = document.createElement("p");
     p1.textContent = row.name;
     const p2 = document.createElement("p");
-    p2.textContent = `PnL ${formatMoney(row.pnl)}`;
-    p2.className = Number(row.pnl) >= 0 ? "pnl-up" : "pnl-down";
+    p2.textContent = `Final Bankroll ${formatMoney(row.bankroll)}`;
 
     card.append(h4, p1, p2);
     podiumCards.appendChild(card);
-  }
-}
-
-function renderEventOptions(eventData, currentBet) {
-  clearElement(optionsWrap);
-
-  for (const option of eventData.options || []) {
-    const label = document.createElement("label");
-    label.className = "option-card";
-
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = "betOption";
-    radio.value = option.key;
-
-    if (currentBet && currentBet.option_key === option.key) {
-      radio.checked = true;
-    }
-
-    const wrapper = document.createElement("div");
-    const top = document.createElement("strong");
-    top.textContent = option.label;
-    const bottom = document.createElement("small");
-    bottom.textContent = "Choose this side";
-
-    wrapper.append(top, bottom);
-    label.append(radio, wrapper);
-    optionsWrap.appendChild(label);
   }
 }
 
@@ -282,40 +250,40 @@ function renderMetaChips(state) {
   }
 }
 
-function renderRules(rules, events, fermiQuestions) {
-  clearElement(rulesList);
-  clearElement(rulesEventsBody);
-  clearElement(rulesFermiBody);
-
-  for (const rule of rules || []) {
-    const li = document.createElement("li");
-    li.textContent = rule;
-    rulesList.appendChild(li);
-  }
-
-  for (const event of events || []) {
-    const tr = document.createElement("tr");
-    const idTd = document.createElement("td");
-    idTd.textContent = event.event_id;
-    const titleTd = document.createElement("td");
-    titleTd.textContent = event.title;
-    const timerTd = document.createElement("td");
-    timerTd.textContent = `${event.bet_window_seconds}s`;
-    tr.append(idTd, titleTd, timerTd);
-    rulesEventsBody.appendChild(tr);
-  }
-
-  for (const question of fermiQuestions || []) {
-    const tr = document.createElement("tr");
-    const idTd = document.createElement("td");
-    idTd.textContent = question.question_id;
-    const promptTd = document.createElement("td");
-    promptTd.textContent = question.prompt;
-    const timerTd = document.createElement("td");
-    timerTd.textContent = `${question.answer_window_seconds}s`;
-    tr.append(idTd, promptTd, timerTd);
-    rulesFermiBody.appendChild(tr);
-  }
+function renderRules(rules) {
+  if (!rulesContent) return;
+  const list = Array.isArray(rules) ? rules : [];
+  const items = list.map((rule) => `<li>${String(rule)}</li>`).join("");
+  rulesContent.innerHTML = `
+    <section class="rules-section">
+      <h3>How It Works</h3>
+      <p>
+        This is a single-player betting game. You start with a bankroll and run through sequential probabilistic events.
+        For each event, choose a stake and optionally use a powerup.
+      </p>
+    </section>
+    <section class="rules-section">
+      <h3>Powerups</h3>
+      <ul>
+        <li><strong>Double Down</strong>: doubles your stake and payout exposure on that round.</li>
+        <li><strong>Insurance</strong>: pays a premium and refunds part of the stake if the round misses.</li>
+        <li><strong>Volatility</strong>: applies a fixed payout multiplier (x1.50) when used.</li>
+        <li><strong>Volatility Carry</strong>: if unused, the volatility card charges a fixed $100 per round.</li>
+      </ul>
+    </section>
+    <section class="rules-section">
+      <h3>Bankroll Rules</h3>
+      <ul>
+        <li>Bet sizing allows decimals and supports zero bet.</li>
+        <li>If bankroll reaches $0, it auto-resets to the configured bust amount.</li>
+        <li>Trade history shows every round result and powerup usage.</li>
+      </ul>
+    </section>
+    <section class="rules-section">
+      <h3>Game Details</h3>
+      <ul>${items}</ul>
+    </section>
+  `;
 }
 
 function renderState(state) {
@@ -325,11 +293,10 @@ function renderState(state) {
   if (you) {
     updateMetricValue(bankrollValue, formatMoney(you.bankroll));
     updateMetricValue(pnlValue, formatMoney(you.pnl), true);
-    rankValue.textContent = you.rank ? `#${you.rank}` : "-";
     renderResults(you.results, you.fermi_results);
 
     if (you.current_bet) {
-      betStatus.textContent = `Current bet: ${you.current_bet.amount} on ${you.current_bet.option_key.toUpperCase()}`;
+      betStatus.textContent = `Current bet: ${formatMoney(you.current_bet.amount)} at posted odds`;
     } else if (state.phase === "events") {
       betStatus.textContent = "";
     }
@@ -338,24 +305,45 @@ function renderState(state) {
       betStatus.textContent = `Current Fermi guess: ${you.current_fermi_guess}`;
       fermiGuessInput.value = String(you.current_fermi_guess);
     }
+
+    if (powerCardStatus) {
+      const holdCost = Number(state.volatility_hold_cost || 0);
+      const holdCostTag = holdCost > 0 ? ` | Carry ${formatMoney(holdCost)}/round` : "";
+      powerCardStatus.textContent = `Cards: DD ${you.double_down_available} | INS ${you.insurance_available} | VOL ${you.volatility_available}${holdCostTag}`;
+    }
+    if (doubleDownInput) {
+      doubleDownInput.disabled = !(you.double_down_available > 0);
+      if (doubleDownInput.disabled) doubleDownInput.checked = false;
+    }
+    if (insuranceInput) {
+      insuranceInput.disabled = !(you.insurance_available > 0);
+      if (insuranceInput.disabled) insuranceInput.checked = false;
+    }
+    if (volatilityInput) {
+      volatilityInput.disabled = !(you.volatility_available > 0);
+      if (volatilityInput.disabled) volatilityInput.checked = false;
+    }
   }
 
-  playerCountValue.textContent = String(state.player_count);
   renderLeaderboard(state.leaderboard);
   renderMetaChips(state);
 
-  if (state.rules && appState.publicConfig) {
-    renderRules(state.rules, appState.publicConfig.events || [], appState.publicConfig.fermi_questions || []);
+  if (state.rules) {
+    renderRules(state.rules);
   }
 
   if (state.phase === "lobby") {
     phaseTitle.textContent = "Lobby";
     timerPill.textContent = "Waiting";
-    eventTitle.textContent = "Waiting for admin to start";
-    eventDescription.textContent = "Join with the code and get ready. Admin controls game start.";
+    eventTitle.textContent = "Ready to Start";
+    eventDescription.textContent = "Press Start Game when you're ready to begin the event sequence.";
     betForm.classList.add("hidden");
     fermiForm.classList.add("hidden");
     podiumPanel.classList.add("hidden");
+    if (startGameBtn) {
+      startGameBtn.classList.remove("hidden");
+      startGameBtn.disabled = !you;
+    }
     return;
   }
 
@@ -365,10 +353,16 @@ function renderState(state) {
     timerPill.textContent = `${eventData.seconds_remaining}s`;
     eventTitle.textContent = `Event ${eventData.event_id}: ${eventData.title}`;
     eventDescription.textContent = eventData.description;
+    if (oddsDisplayInput) {
+      oddsDisplayInput.value = eventData.odds_label || "-";
+    }
+    if (startGameBtn) {
+      startGameBtn.classList.add("hidden");
+      startGameBtn.disabled = true;
+    }
     betForm.classList.remove("hidden");
     fermiForm.classList.add("hidden");
     podiumPanel.classList.add("hidden");
-    renderEventOptions(eventData, you ? you.current_bet : null);
     return;
   }
 
@@ -381,6 +375,10 @@ function renderState(state) {
     betForm.classList.add("hidden");
     fermiForm.classList.remove("hidden");
     podiumPanel.classList.add("hidden");
+    if (startGameBtn) {
+      startGameBtn.classList.add("hidden");
+      startGameBtn.disabled = true;
+    }
     return;
   }
 
@@ -388,10 +386,20 @@ function renderState(state) {
     phaseTitle.textContent = "Finished";
     timerPill.textContent = "Done";
     eventTitle.textContent = "Competition complete";
-    eventDescription.textContent = "Final standings are locked.";
+    eventDescription.textContent = you
+      ? `Final bankroll: ${formatMoney(you.bankroll)}. Full trade history is listed below.`
+      : "Final standings are locked.";
+    if (you) {
+      betStatus.textContent = `Final bankroll: ${formatMoney(you.bankroll)}`;
+      betStatus.className = "info-line";
+    }
     betForm.classList.add("hidden");
     fermiForm.classList.add("hidden");
     podiumPanel.classList.remove("hidden");
+    if (startGameBtn) {
+      startGameBtn.classList.add("hidden");
+      startGameBtn.disabled = true;
+    }
     renderPodium(state.podium);
   }
 }
@@ -401,45 +409,19 @@ async function fetchPublicConfig() {
     const response = await fetch("/api/events");
     const payload = await response.json();
     appState.publicConfig = payload;
-    renderRules(payload.rules || [], payload.events || [], payload.fermi_questions || []);
-
-    if (!adminReplaceEventsJson.value && payload.events) {
-      const eventTemplate = payload.events.map((event) => {
-        const yesOption = event.options.find((option) => option.key === "yes");
-        const noOption = event.options.find((option) => option.key === "no");
-        return {
-          title: event.title,
-          description: event.description,
-          yes_label: yesOption?.label || "YES",
-          no_label: noOption?.label || "NO",
-          yes_probability: yesOption?.probability || 0.5,
-          bet_window_seconds: event.bet_window_seconds,
-        };
-      });
-      adminReplaceEventsJson.value = JSON.stringify(eventTemplate, null, 2);
-    }
-
-    if (!adminReplaceFermiJson.value && payload.fermi_questions) {
-      const fermiTemplate = payload.fermi_questions.map((q) => ({
-        prompt: q.prompt,
-        true_value: q.true_value || 1000,
-        unit: q.unit,
-        answer_window_seconds: q.answer_window_seconds,
-      }));
-      adminReplaceFermiJson.value = JSON.stringify(fermiTemplate, null, 2);
-    }
+    renderRules(payload.rules || []);
   } catch {
     // Ignore boot error.
   }
 }
 
-async function join(name, code) {
+async function join(name) {
   joinError.textContent = "";
   try {
     const response = await fetch("/api/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, code }),
+      body: JSON.stringify({ name }),
     });
 
     const payload = await response.json();
@@ -447,8 +429,8 @@ async function join(name, code) {
       throw new Error(payload.detail || payload.error || "Failed to join.");
     }
 
-  appState.token = payload.token;
-  localStorage.setItem(TOKEN_KEY, payload.token);
+    appState.token = payload.token;
+    localStorage.setItem(TOKEN_KEY, payload.token);
     joinCard.classList.add("hidden");
     gameView.classList.remove("hidden");
     renderState(payload.state);
@@ -533,6 +515,7 @@ async function adminFetch(path, options = {}) {
 }
 
 function renderAdminLeaderboard(rows) {
+  if (!adminLeaderboardBody) return;
   clearElement(adminLeaderboardBody);
   for (const row of rows || []) {
     const tr = document.createElement("tr");
@@ -540,18 +523,15 @@ function renderAdminLeaderboard(rows) {
     rank.textContent = row.rank;
     const name = document.createElement("td");
     name.textContent = row.name;
-    const pnl = document.createElement("td");
-    pnl.textContent = formatMoney(row.pnl);
-    pnl.className = Number(row.pnl) >= 0 ? "pnl-up" : "pnl-down";
     const bankroll = document.createElement("td");
     bankroll.textContent = formatMoney(row.bankroll);
     const busts = document.createElement("td");
     busts.textContent = String(row.bust_count || 0);
     const bet = document.createElement("td");
-    bet.textContent = row.current_bet ? `${row.current_bet.amount} on ${row.current_bet.option_key}` : "-";
-    const fermi = document.createElement("td");
-    fermi.textContent = row.current_fermi_guess !== null && row.current_fermi_guess !== undefined ? String(row.current_fermi_guess) : "-";
-    tr.append(rank, name, pnl, bankroll, busts, bet, fermi);
+    bet.textContent = row.current_bet ? formatMoney(row.current_bet.amount) : "-";
+    const powerCards = document.createElement("td");
+    powerCards.textContent = `DD ${row.double_down_available ?? 0} | INS ${row.insurance_available ?? 0} | VOL ${row.volatility_available ?? 0}`;
+    tr.append(rank, name, bankroll, busts, bet, powerCards);
     adminLeaderboardBody.appendChild(tr);
   }
 }
@@ -621,14 +601,11 @@ function fillEventEditorFromSelection(events) {
     return;
   }
 
-  const yesOption = (event.options || []).find((option) => option.key === "yes");
-  const noOption = (event.options || []).find((option) => option.key === "no");
-
   adminEventTitle.value = event.title;
   adminEventDescription.value = event.description;
-  adminYesLabel.value = yesOption?.label || "YES";
-  adminNoLabel.value = noOption?.label || "NO";
-  adminYesProbability.value = yesOption?.probability ?? 0.5;
+  adminTrueProbability.value = event.true_probability ?? 0.5;
+  adminOddsNumerator.value = event.odds_numerator ?? 1;
+  adminOddsDenominator.value = event.odds_denominator ?? 1;
   adminEventSeconds.value = event.bet_window_seconds;
 }
 
@@ -672,10 +649,9 @@ function renderAdminState(state) {
   adminControls.classList.remove("hidden");
 
   setAdminStatus(
-    `Connected. Phase=${state.phase} | Players=${state.player_count} | Event ${state.event_index}/${state.total_events} | Fermi ${state.fermi_index}/${state.total_fermi} | ${state.paused ? "PAUSED" : "RUNNING"}`,
+    `Connected. Phase=${state.phase} | Players=${state.player_count}/${state.max_players || state.player_count} | Event ${state.event_index}/${state.total_events} | Fermi ${state.fermi_index}/${state.total_fermi} | ${state.paused ? "PAUSED" : "RUNNING"}`,
   );
 
-  adminAccessCode.value = state.access_code;
   adminStartingBankroll.value = state.starting_bankroll;
   adminBustRebuy.value = state.bust_rebuy_amount;
   adminRoundStipend.value = state.round_stipend;
@@ -684,7 +660,31 @@ function renderAdminState(state) {
   renderAdminResults(state.event_results, state.fermi_results);
   renderEventEditorOptions(state.events);
   renderFermiEditorOptions(state.fermi_questions);
-  renderRules(state.rules || [], state.events || [], state.fermi_questions || []);
+  renderRules(state.rules || []);
+
+  if (!adminReplaceEventsJson.value && state.events) {
+    const eventTemplate = state.events.map((event) => {
+      return {
+        title: event.title,
+        description: event.description,
+        true_probability: event.true_probability || 0.5,
+        odds_numerator: event.odds_numerator || 1,
+        odds_denominator: event.odds_denominator || 1,
+        bet_window_seconds: event.bet_window_seconds,
+      };
+    });
+    adminReplaceEventsJson.value = JSON.stringify(eventTemplate, null, 2);
+  }
+
+  if (!adminReplaceFermiJson.value && state.fermi_questions) {
+    const fermiTemplate = state.fermi_questions.map((q) => ({
+      prompt: q.prompt,
+      true_value: q.true_value,
+      unit: q.unit,
+      answer_window_seconds: q.answer_window_seconds,
+    }));
+    adminReplaceFermiJson.value = JSON.stringify(fermiTemplate, null, 2);
+  }
 }
 
 async function refreshAdminState() {
@@ -720,12 +720,11 @@ function downloadJson(filename, data) {
 on(joinForm, "submit", (event) => {
   event.preventDefault();
   const name = nameInput.value.trim();
-  const code = codeInput.value.trim();
-  if (!name || !code) {
-    joinError.textContent = "Name and join code are required.";
+  if (!name) {
+    joinError.textContent = "Player name is required.";
     return;
   }
-  join(name, code);
+  join(name);
 });
 
 on(betForm, "submit", (event) => {
@@ -736,16 +735,9 @@ on(betForm, "submit", (event) => {
     return;
   }
 
-  const selected = document.querySelector('input[name="betOption"]:checked');
-  if (!selected) {
-    betStatus.textContent = "Pick an option before placing the bet.";
-    betStatus.className = "error";
-    return;
-  }
-
   const amount = Number(amountInput.value || 0);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    betStatus.textContent = "Enter a valid positive amount.";
+  if (!Number.isFinite(amount) || amount < 0) {
+    betStatus.textContent = "Enter a valid amount >= 0.";
     betStatus.className = "error";
     return;
   }
@@ -753,12 +745,25 @@ on(betForm, "submit", (event) => {
   appState.ws.send(
     JSON.stringify({
       type: "place_bet",
-      option: selected.value,
-      amount: Math.floor(amount),
+      amount,
+      use_double_down: Boolean(doubleDownInput && doubleDownInput.checked),
+      use_insurance: Boolean(insuranceInput && insuranceInput.checked),
+      use_volatility: Boolean(volatilityInput && volatilityInput.checked),
     }),
   );
 
   betStatus.textContent = "Bet submitted.";
+  betStatus.className = "info-line";
+});
+
+on(startGameBtn, "click", () => {
+  if (!appState.ws || appState.ws.readyState !== WebSocket.OPEN) {
+    betStatus.textContent = "Connection is not ready yet.";
+    betStatus.className = "error";
+    return;
+  }
+  appState.ws.send(JSON.stringify({ type: "start_game" }));
+  betStatus.textContent = "Start signal sent.";
   betStatus.className = "info-line";
 });
 
@@ -875,8 +880,6 @@ on(adminSettingsForm, "submit", async (event) => {
   event.preventDefault();
   const body = {};
 
-  if (adminAccessCode.value.trim()) body.access_code = adminAccessCode.value.trim();
-
   const startingBankroll = toMaybeNumber(adminStartingBankroll.value);
   const bustRebuy = toMaybeNumber(adminBustRebuy.value);
   const roundStipend = toMaybeNumber(adminRoundStipend.value);
@@ -908,14 +911,19 @@ on(adminEventForm, "submit", async (event) => {
     return;
   }
 
-  const body = {
-    title: adminEventTitle.value.trim(),
-    description: adminEventDescription.value.trim(),
-    yes_label: adminYesLabel.value.trim(),
-    no_label: adminNoLabel.value.trim(),
-    yes_probability: Number(adminYesProbability.value),
-    bet_window_seconds: Number(adminEventSeconds.value),
-  };
+  const body = {};
+  if (adminEventTitle.value.trim()) body.title = adminEventTitle.value.trim();
+  if (adminEventDescription.value.trim()) body.description = adminEventDescription.value.trim();
+
+  const trueProbability = toMaybeNumber(adminTrueProbability.value);
+  const oddsNumerator = toMaybeNumber(adminOddsNumerator.value);
+  const oddsDenominator = toMaybeNumber(adminOddsDenominator.value);
+  const eventSeconds = toMaybeNumber(adminEventSeconds.value);
+
+  if (trueProbability !== null) body.true_probability = trueProbability;
+  if (oddsNumerator !== null) body.odds_numerator = oddsNumerator;
+  if (oddsDenominator !== null) body.odds_denominator = oddsDenominator;
+  if (eventSeconds !== null) body.bet_window_seconds = Math.floor(eventSeconds);
 
   try {
     await adminAction(`/api/admin/events/${eventId}`, "POST", body);
@@ -936,12 +944,14 @@ on(adminFermiForm, "submit", async (event) => {
     return;
   }
 
-  const body = {
-    prompt: adminFermiPrompt.value.trim(),
-    true_value: Number(adminFermiTruth.value),
-    unit: adminFermiUnit.value.trim(),
-    answer_window_seconds: Number(adminFermiSeconds.value),
-  };
+  const body = {};
+  if (adminFermiPrompt.value.trim()) body.prompt = adminFermiPrompt.value.trim();
+  if (adminFermiUnit.value.trim()) body.unit = adminFermiUnit.value.trim();
+
+  const trueValue = toMaybeNumber(adminFermiTruth.value);
+  const fermiSeconds = toMaybeNumber(adminFermiSeconds.value);
+  if (trueValue !== null) body.true_value = trueValue;
+  if (fermiSeconds !== null) body.answer_window_seconds = Math.floor(fermiSeconds);
 
   try {
     await adminAction(`/api/admin/fermi/${questionId}`, "POST", body);

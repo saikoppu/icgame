@@ -8,20 +8,17 @@ GamePhase = Literal["lobby", "events", "fermi", "finished"]
 
 
 @dataclass(frozen=True)
-class BetOption:
-    key: str
-    label: str
-    probability: float
-    payout_multiplier: float
-
-
-@dataclass(frozen=True)
 class GameEvent:
     event_id: int
     title: str
     description: str
-    options: tuple[BetOption, ...]
+    true_probability: float
+    odds_numerator: float
+    odds_denominator: float
     bet_window_seconds: int
+    signal_enabled: bool = True
+    signal_quality: float = 0.65
+    signal_reserve_multiplier: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -36,16 +33,21 @@ class FermiQuestion:
 @dataclass
 class PlayerBet:
     event_id: int
-    option_key: str
-    amount: int
+    base_amount: float
+    amount: float
+    double_down: bool = False
+    insurance: bool = False
+    volatility: bool = False
+    insurance_premium: float = 0.0
 
 
 @dataclass
 class EventResult:
     event_id: int
     title: str
-    outcome_key: str
+    outcome_hit: bool
     outcome_label: str
+    odds_label: str
 
 
 @dataclass
@@ -62,9 +64,18 @@ class FermiResult:
 class PlayerEventResult:
     event_id: int
     title: str
-    bet_option_key: str | None
-    bet_amount: int
-    outcome_key: str
+    base_bet_amount: float
+    bet_amount: float
+    double_down_used: bool
+    insurance_used: bool
+    volatility_used: bool
+    volatility_multiplier: float | None
+    volatility_carry_cost: float
+    insurance_premium: float
+    insurance_refund: float
+    signal_bid: float
+    signal_hint: str | None
+    outcome_hit: bool
     pnl_delta: float
     bankroll_after: float
     rebuy_applied: bool
@@ -92,6 +103,16 @@ class PlayerState:
     contributions: float
     current_bet: PlayerBet | None = None
     current_fermi_guess: float | None = None
+    current_signal_hint: str | None = None
+    current_signal_bid: float = 0.0
+    current_signal_event_id: int | None = None
+    signal_spend_total: float = 0.0
+    double_down_available: int = 1
+    insurance_available: int = 1
+    volatility_available: int = 1
+    volatility_hold_cost_paid: float = 0.0
+    current_round_volatility_carry_cost: float = 0.0
+    current_round_pre_bet_rebuy: bool = False
     ever_busted: bool = False
     bust_count: int = 0
     results: list[PlayerEventResult] = field(default_factory=list)

@@ -211,7 +211,7 @@ label {
 
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.8rem;
   margin-bottom: 0.9rem;
 }
@@ -232,7 +232,7 @@ label {
 
 .main-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: 1fr;
   gap: 0.85rem;
   margin-bottom: 0.85rem;
 }
@@ -246,6 +246,12 @@ label {
   justify-content: space-between;
   align-items: center;
   gap: 0.9rem;
+}
+
+.event-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .event-header h2 {
@@ -266,13 +272,16 @@ label {
 }
 
 .event-panel h3 {
-  margin: 0.65rem 0 0.3rem;
-  font-size: 1.32rem;
+  margin: 0.75rem 0 0.6rem;
+  font-size: clamp(2rem, 5.6vw, 3.8rem);
+  line-height: 1.1;
 }
 
 .event-panel p {
   margin: 0;
   color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.55;
 }
 
 .event-meta {
@@ -296,41 +305,23 @@ label {
   padding-top: 0.95rem;
 }
 
-.options-wrap {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin-bottom: 0.8rem;
-}
-
-.option-card {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0.75rem;
-  display: flex;
-  gap: 0.55rem;
-  align-items: center;
-}
-
-.option-card input {
-  min-width: auto;
-}
-
-.option-card strong {
-  display: block;
-  margin-bottom: 0.25rem;
-}
-
-.option-card small {
-  color: var(--muted);
-  display: block;
-}
-
 .bet-controls {
   display: flex;
   gap: 0.7rem;
   align-items: end;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+.bet-controls label {
+  min-width: 180px;
+  text-align: left;
+  font-size: 0.95rem;
+}
+
+.bet-controls button {
+  font-size: 1.02rem;
+  padding: 0.78rem 1.05rem;
 }
 
 .info-line,
@@ -379,6 +370,45 @@ li {
   padding: 0.55rem 0.65rem;
   font-size: 0.89rem;
   color: #d5e4ff;
+}
+
+.rules-content {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.rules-section {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem 0.95rem;
+  background: rgba(7, 22, 63, 0.5);
+}
+
+.rules-section h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.rules-section p {
+  margin: 0;
+  color: #d7e6ff;
+  line-height: 1.55;
+}
+
+.rules-section ul {
+  display: block;
+  list-style: disc;
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.rules-section li {
+  border: none;
+  border-radius: 0;
+  padding: 0.14rem 0;
+  color: #d7e6ff;
+  font-size: 0.95rem;
 }
 
 .pnl-up {
@@ -460,7 +490,6 @@ li {
     min-width: 0;
   }
 
-  .options-wrap,
   .podium-cards {
     grid-template-columns: 1fr;
   }
