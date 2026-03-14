@@ -7,7 +7,6 @@ from typing import Any
 from uuid import uuid4
 
 from .models import (
-    BetOption,
     EventResult,
     FermiQuestion,
     FermiResult,
@@ -20,37 +19,29 @@ from .models import (
 )
 
 
-def _binary_event(
+def _event(
     event_id: int,
     title: str,
     description: str,
-    yes_probability: float,
+    true_probability: float,
+    odds_numerator: float,
+    odds_denominator: float,
     bet_window_seconds: int,
-    *,
-    yes_label: str = "YES",
-    no_label: str = "NO",
+    signal_enabled: bool = True,
+    signal_quality: float = 0.65,
+    signal_reserve_multiplier: float = 1.0,
 ) -> GameEvent:
-    yes_probability = max(0.01, min(0.99, yes_probability))
-    no_probability = 1.0 - yes_probability
     return GameEvent(
         event_id=event_id,
         title=title,
         description=description,
+        true_probability=max(0.01, min(0.99, float(true_probability))),
+        odds_numerator=max(0.01, float(odds_numerator)),
+        odds_denominator=max(0.01, float(odds_denominator)),
         bet_window_seconds=max(5, int(bet_window_seconds)),
-        options=(
-            BetOption(
-                key="yes",
-                label=yes_label,
-                probability=yes_probability,
-                payout_multiplier=round(1.0 / yes_probability, 2),
-            ),
-            BetOption(
-                key="no",
-                label=no_label,
-                probability=no_probability,
-                payout_multiplier=round(1.0 / no_probability, 2),
-            ),
-        ),
+        signal_enabled=bool(signal_enabled),
+        signal_quality=max(0.1, min(1.0, float(signal_quality))),
+        signal_reserve_multiplier=max(0.2, float(signal_reserve_multiplier)),
     )
 
 
@@ -65,171 +56,46 @@ def _fermi_question(question_id: int, prompt: str, true_value: float, unit: str,
 
 
 def default_events() -> list[GameEvent]:
+    # Scattered difficulty and odds (not monotonic by round).
     return [
-        _binary_event(
-            1,
-            "Coin Toss Warmup",
-            "Fair coin lands heads.",
-            0.50,
-            22,
-            yes_label="HEADS",
-            no_label="TAILS",
-        ),
-        _binary_event(
-            2,
-            "Two Dice High Sum",
-            "Roll two fair dice. Sum is at least 10.",
-            6.0 / 36.0,
-            24,
-            yes_label="SUM >= 10",
-            no_label="SUM <= 9",
-        ),
-        _binary_event(
-            3,
-            "Three Dice Distinct",
-            "Roll 3 fair dice. All three outcomes are distinct.",
-            (6.0 * 5.0 * 4.0) / (6.0**3),
-            24,
-            yes_label="ALL DISTINCT",
-            no_label="HAS MATCH",
-        ),
-        _binary_event(
-            4,
-            "Four Dice Exact",
-            "Roll 4 fair dice. Exactly one die shows 6.",
-            4.0 * (1.0 / 6.0) * ((5.0 / 6.0) ** 3),
-            25,
-            yes_label="EXACTLY ONE 6",
-            no_label="OTHER",
-        ),
-        _binary_event(
-            5,
-            "Ace In Two",
-            "Draw 2 cards without replacement. At least one ace appears.",
-            1.0 - ((48.0 / 52.0) * (47.0 / 51.0)),
-            25,
-            yes_label=">=1 ACE",
-            no_label="NO ACE",
-        ),
-        _binary_event(
-            6,
-            "Four Coins Exact",
-            "Flip 4 fair coins. Exactly 2 are heads.",
-            6.0 / 16.0,
-            26,
-            yes_label="EXACT 2H",
-            no_label="OTHER",
-        ),
-        _binary_event(
-            7,
-            "Card Color Match",
-            "Draw 2 cards without replacement. Both cards are the same color.",
-            50.0 / 102.0,
-            26,
-            yes_label="SAME COLOR",
-            no_label="DIFF COLOR",
-        ),
-        _binary_event(
-            8,
-            "Prime Sum",
-            "Roll two fair dice. Sum is prime.",
-            15.0 / 36.0,
-            27,
-            yes_label="PRIME SUM",
-            no_label="NON-PRIME",
-        ),
-        _binary_event(
-            9,
-            "Five Coins Tail Risk",
-            "Flip 5 fair coins. At least 4 heads appear.",
-            6.0 / 32.0,
-            27,
-            yes_label=">=4 HEADS",
-            no_label="<=3 HEADS",
-        ),
-        _binary_event(
-            10,
-            "Card Color Composition",
-            "Draw 3 cards without replacement. Exactly one is red.",
-            (26.0 * 26.0 * 25.0 * 3.0) / (52.0 * 51.0 * 50.0),
-            28,
-            yes_label="EXACT 1 RED",
-            no_label="OTHER",
-        ),
-        _binary_event(
-            11,
-            "Face Card Pair",
-            "Draw 2 cards without replacement. Both are face cards.",
-            (12.0 / 52.0) * (11.0 / 51.0),
-            30,
-            yes_label="BOTH FACE",
-            no_label="OTHER",
-        ),
-        _binary_event(
-            12,
-            "Final EV Check",
-            "Roll 3 fair dice. Sum is at least 13.",
-            56.0 / 216.0,
-            32,
-            yes_label="SUM >= 13",
-            no_label="SUM <= 12",
-        ),
+        _event(1, "Coin Flip", "A fair coin lands heads.", 0.50, 6, 5, 22, signal_quality=0.35, signal_reserve_multiplier=0.9),
+        _event(2, "Dice High Sum", "Two fair dice sum to at least 10.", 6.0 / 36.0, 5, 1, 24, signal_quality=0.55, signal_reserve_multiplier=1.0),
+        _event(3, "Distinct Triple", "Three fair dice are all distinct.", (6.0 * 5.0 * 4.0) / (6.0**3), 39, 50, 24, signal_quality=0.45, signal_reserve_multiplier=0.9),
+        _event(4, "One Six Exactly", "Four fair dice have exactly one 6.", 4.0 * (1.0 / 6.0) * ((5.0 / 6.0) ** 3), 2, 1, 25, signal_quality=0.6),
+        _event(5, "Ace In Two", "Two cards include at least one ace.", 1.0 - ((48.0 / 52.0) * (47.0 / 51.0)), 8, 1, 25, signal_quality=0.8, signal_reserve_multiplier=1.1),
+        _event(6, "Two Heads In Four", "Exactly two heads in four fair coin flips.", 6.0 / 16.0, 2, 1, 26, signal_quality=0.5),
+        _event(7, "Color Match", "Two cards are the same color.", 50.0 / 102.0, 1, 1, 26, signal_quality=0.35, signal_reserve_multiplier=0.8),
+        _event(8, "Prime Sum", "Two fair dice have a prime sum.", 15.0 / 36.0, 2, 1, 27, signal_quality=0.6),
+        _event(9, "Tail Risk", "At least 4 heads in 5 fair coin flips.", 6.0 / 32.0, 6, 1, 27, signal_quality=0.85, signal_reserve_multiplier=1.2),
+        _event(10, "One Red", "Exactly one red card in 3 draws.", (26.0 * 26.0 * 25.0 * 3.0) / (52.0 * 51.0 * 50.0), 2, 1, 28, signal_quality=0.55),
+        _event(11, "Face Pair", "Two cards are both face cards.", (12.0 / 52.0) * (11.0 / 51.0), 25, 1, 30, signal_quality=0.9, signal_reserve_multiplier=1.25),
+        _event(12, "Final EV Check", "Three fair dice sum to at least 13.", 56.0 / 216.0, 9, 2, 32, signal_quality=0.7),
+        _event(13, "Ace In Four", "Four cards include at least one ace.", 1.0 - ((48.0 / 52.0) * (47.0 / 51.0) * (46.0 / 50.0) * (45.0 / 49.0)), 4, 1, 30, signal_quality=0.75),
+        _event(14, "Two Heads In Three", "Exactly two heads in three fair coin flips.", 3.0 / 8.0, 8, 5, 29, signal_quality=0.5, signal_reserve_multiplier=0.95),
+        _event(15, "Same Suit Triple", "Three drawn cards are all the same suit.", (12.0 / 51.0) * (11.0 / 50.0), 26, 1, 33, signal_quality=0.9, signal_reserve_multiplier=1.3),
     ]
 
 
 def default_fermi_questions() -> list[FermiQuestion]:
-    return [
-        _fermi_question(
-            1,
-            "Estimate annual undergraduate applications submitted to Georgia Tech (Atlanta campus).",
-            58_000,
-            "applications",
-            35,
-        ),
-        _fermi_question(
-            2,
-            "Estimate total seats in Bobby Dodd Stadium.",
-            55_000,
-            "seats",
-            35,
-        ),
-        _fermi_question(
-            3,
-            "Estimate total square footage of the Georgia Tech Library complex.",
-            375_000,
-            "sq ft",
-            35,
-        ),
-        _fermi_question(
-            4,
-            "Estimate how many meals are served per week across major GT dining halls.",
-            180_000,
-            "meals/week",
-            35,
-        ),
-        _fermi_question(
-            5,
-            "Estimate total number of alumni worldwide associated with Georgia Tech.",
-            210_000,
-            "alumni",
-            35,
-        ),
-    ]
+    return []
 
 
 def default_rules() -> list[str]:
     return [
-        "All players start with $1000 and place bets across 12 probabilistic events.",
+        "This build is single-player: only one player can join each game instance at a time.",
+        "All players start with $1000 and place bets across 15 probabilistic events.",
+        "Each betting round has one proposition with fixed posted odds (for example 3:1).",
+        "You only choose how much to stake on that proposition; no side-selection market is used.",
+        "Posted odds vary by round: some are fair or slightly negative EV, most are positive EV, and a few are high-volatility.",
+        "Decimal bet sizing is allowed and minimum bet is $0.",
+        "You have one Double Down card per game: it doubles stake/risk on a chosen round.",
+        "You have one Insurance card per game: it charges a premium and partially refunds losing stake.",
+        "You have one Volatility Regime card per game: if used on a round, your win payout uses a fixed 1.50x multiplier.",
+        "To hold an unused Volatility card, you pay a fixed $100 carry cost each event round until the card is used.",
         "Event outcomes are randomized server-side and every player receives the same outcome each round.",
-        "Bets can be replaced during the timer; only the latest bet is active for that round.",
-        "If a player's bankroll hits $0 at any point, they are automatically reset to $500 so they can keep playing.",
-        "Admin is the only role that can start the game.",
-        "Players must join with the correct lobby code set by admin.",
-        "After the 12 betting rounds, the game moves to 5 GT Fermi questions.",
-        "For each Fermi question, only guesses >= true value are valid; guesses below true value get 0% boost.",
-        "Fermi percentile boosts are computed only among non-busted players with valid guesses.",
-        "Bankroll boost is applied as: bankroll *= (1 + percentile). Example: 90th percentile -> +90%.",
-        "Leaderboard is visible to everyone and shows all players from rank 1 through rank N.",
+        "If your bankroll hits $0 at any point, it is auto-reset to $500 so everyone can keep playing.",
+        "You can start the game directly from lobby after joining.",
+        "Final score is your ending bankroll; use trade history for round-by-round review.",
     ]
 
 
@@ -243,6 +109,15 @@ class GameEngine:
         round_stipend: int = 0,
         bust_rebuy_amount: int = 500,
         access_code: str = "quant",
+        max_players: int = 1,
+        double_down_uses: int = 1,
+        insurance_uses: int = 1,
+        volatility_uses: int = 1,
+        volatility_hold_cost: float = 100.0,
+        volatility_profit_multiplier: float = 1.5,
+        insurance_premium_pct: float = 0.12,
+        insurance_refund_pct: float = 0.6,
+        signal_stake_cap_fraction: float = 0.35,
         events: list[GameEvent] | None = None,
         fermi_questions: list[FermiQuestion] | None = None,
     ) -> None:
@@ -253,6 +128,15 @@ class GameEngine:
         self.round_stipend = float(round_stipend)
         self.bust_rebuy_amount = float(max(1, int(bust_rebuy_amount)))
         self.access_code = access_code.strip() or "quant"
+        self.max_players = max(1, int(max_players))
+        self.double_down_uses = max(0, int(double_down_uses))
+        self.insurance_uses = max(0, int(insurance_uses))
+        self.volatility_uses = max(0, int(volatility_uses))
+        self.volatility_hold_cost = max(0.0, round(float(volatility_hold_cost), 2))
+        self.volatility_profit_multiplier = max(0.01, float(volatility_profit_multiplier))
+        self.insurance_premium_pct = max(0.0, float(insurance_premium_pct))
+        self.insurance_refund_pct = max(0.0, min(1.0, float(insurance_refund_pct)))
+        self.signal_stake_cap_fraction = max(0.05, min(0.95, float(signal_stake_cap_fraction)))
 
         self.events = list(events) if events else default_events()
         self.fermi_questions = list(fermi_questions) if fermi_questions else default_fermi_questions()
@@ -298,7 +182,10 @@ class GameEngine:
                 return idx
         raise ValueError(f"Unknown question_id: {question_id}")
 
-    def join_player(self, raw_name: str, raw_code: str) -> PlayerState:
+    def _odds_label(self, event: GameEvent) -> str:
+        return f"{event.odds_numerator:g}:{event.odds_denominator:g}"
+
+    def join_player(self, raw_name: str) -> PlayerState:
         if self.phase != "lobby":
             raise ValueError("The game is already running. New players can only join during lobby.")
 
@@ -306,11 +193,8 @@ class GameEngine:
         if not name:
             raise ValueError("Name is required.")
 
-        code = (raw_code or "").strip()
-        if not code:
-            raise ValueError("Join code is required.")
-        if code != self.access_code:
-            raise ValueError("Invalid join code.")
+        if len(self.players) >= self.max_players:
+            raise ValueError(f"Player limit reached ({self.max_players}).")
 
         existing_names = {player.name.lower() for player in self.players.values()}
         base_name = name
@@ -325,11 +209,22 @@ class GameEngine:
             name=name,
             bankroll=self.starting_bankroll,
             contributions=self.starting_bankroll,
+            double_down_available=self.double_down_uses,
+            insurance_available=self.insurance_uses,
+            volatility_available=self.volatility_uses,
         )
         self.players[token] = player
         return player
 
-    def place_bet(self, token: str, option_key: str, amount: int) -> PlayerBet:
+    def place_bet(
+        self,
+        token: str,
+        amount: float,
+        *,
+        use_double_down: bool = False,
+        use_insurance: bool = False,
+        use_volatility: bool = False,
+    ) -> PlayerBet | None:
         if self.phase != "events":
             raise ValueError("Betting is closed right now.")
 
@@ -341,22 +236,123 @@ class GameEngine:
         if player is None:
             raise ValueError("Unknown player session.")
 
-        if amount <= 0:
-            raise ValueError("Bet amount must be positive.")
-
-        option_lookup = {option.key: option for option in event.options}
-        if option_key not in option_lookup:
-            raise ValueError("Invalid bet option.")
+        amount_f = round(float(amount), 2)
+        if amount_f < 0:
+            raise ValueError("Bet amount must be >= 0.")
 
         if player.current_bet is not None and player.current_bet.event_id == event.event_id:
-            player.bankroll += player.current_bet.amount
+            prior = player.current_bet
+            player.bankroll += prior.amount + prior.insurance_premium
+            if prior.double_down:
+                player.double_down_available += 1
+            if prior.insurance:
+                player.insurance_available += 1
+            if prior.volatility:
+                player.volatility_available += 1
 
-        if amount > player.bankroll:
+        if amount_f == 0:
+            player.current_bet = None
+            return None
+
+        if use_double_down and player.double_down_available <= 0:
+            raise ValueError("Double Down card already used.")
+        if use_insurance and player.insurance_available <= 0:
+            raise ValueError("Insurance card already used.")
+        if use_volatility and player.volatility_available <= 0:
+            raise ValueError("Volatility card already used.")
+
+        effective_amount = round(amount_f * (2.0 if use_double_down else 1.0), 2)
+        insurance_premium = round(effective_amount * self.insurance_premium_pct, 2) if use_insurance else 0.0
+        total_cost = effective_amount + insurance_premium
+
+        if total_cost > player.bankroll + 1e-9:
             raise ValueError("Insufficient bankroll.")
 
-        player.bankroll -= amount
-        player.current_bet = PlayerBet(event_id=event.event_id, option_key=option_key, amount=amount)
+        player.bankroll -= total_cost
+        if use_double_down:
+            player.double_down_available -= 1
+        if use_insurance:
+            player.insurance_available -= 1
+        if use_volatility:
+            player.volatility_available -= 1
+
+        player.current_bet = PlayerBet(
+            event_id=event.event_id,
+            base_amount=amount_f,
+            amount=effective_amount,
+            double_down=use_double_down,
+            insurance=use_insurance,
+            volatility=use_volatility,
+            insurance_premium=insurance_premium,
+        )
         return player.current_bet
+
+    def _signal_reserve(self, player: PlayerState, event: GameEvent) -> float:
+        odds_ratio = event.odds_numerator / event.odds_denominator
+        breakeven_prob = 1.0 / (1.0 + odds_ratio)
+        edge = abs(event.true_probability - breakeven_prob)
+        voi = player.bankroll * self.signal_stake_cap_fraction * edge * event.signal_quality
+        reserve = round(voi * event.signal_reserve_multiplier, 2)
+        floor = 5.0
+        cap = max(10.0, player.bankroll * 0.25)
+        return max(floor, min(cap, reserve))
+
+    def _signal_hint(self, event: GameEvent) -> str:
+        p = event.true_probability
+        odds_ratio = event.odds_numerator / event.odds_denominator
+        breakeven_prob = 1.0 / (1.0 + odds_ratio)
+
+        if event.signal_quality < 0.45:
+            direction = "above" if p >= breakeven_prob else "below"
+            return f"Signal: true probability is likely {direction} breakeven."
+
+        if event.signal_quality < 0.75:
+            spread = 0.12
+            lo = max(0.01, p - spread)
+            hi = min(0.99, p + spread)
+            return f"Signal: estimated probability band is [{lo:.2f}, {hi:.2f}]."
+
+        spread = 0.06
+        lo = max(0.01, p - spread)
+        hi = min(0.99, p + spread)
+        return f"Signal: tight estimate is [{lo:.2f}, {hi:.2f}] (high confidence)."
+
+    def purchase_signal(self, token: str, bid: float) -> dict[str, Any]:
+        if self.phase != "events":
+            raise ValueError("Signals are only available during betting rounds.")
+
+        event = self.current_event
+        if event is None:
+            raise ValueError("No active event.")
+        if not event.signal_enabled:
+            raise ValueError("Signal purchase disabled for this round.")
+
+        player = self.players.get(token)
+        if player is None:
+            raise ValueError("Unknown player session.")
+        if player.current_signal_event_id == event.event_id and player.current_signal_hint is not None:
+            raise ValueError("Signal already purchased for this round.")
+
+        bid_f = round(float(bid), 2)
+        if bid_f <= 0:
+            raise ValueError("Bid must be positive.")
+        if bid_f > player.bankroll + 1e-9:
+            raise ValueError("Insufficient bankroll.")
+
+        reserve = self._signal_reserve(player, event)
+        if bid_f < reserve:
+            raise ValueError("Bid did not meet the hidden reserve.")
+
+        player.bankroll -= bid_f
+        player.signal_spend_total += bid_f
+        player.current_signal_event_id = event.event_id
+        player.current_signal_bid = bid_f
+        player.current_signal_hint = self._signal_hint(event)
+        return {
+            "event_id": event.event_id,
+            "hint": player.current_signal_hint,
+            "paid": bid_f,
+        }
 
     def submit_fermi_guess(self, token: str, guess_value: float) -> float:
         if self.phase != "fermi":
@@ -405,7 +401,7 @@ class GameEngine:
     def leaderboard(self) -> list[PlayerState]:
         return sorted(
             self.players.values(),
-            key=lambda player: (player.pnl, player.bankroll, player.name.lower()),
+            key=lambda player: (player.bankroll, player.pnl, player.name.lower()),
             reverse=True,
         )
 
@@ -416,7 +412,7 @@ class GameEngine:
         return None
 
     def _apply_rebuy_if_busted(self, player: PlayerState) -> bool:
-        if player.bankroll > 0:
+        if player.bankroll > 1e-9:
             return False
         player.bankroll = self.bust_rebuy_amount
         player.contributions += self.bust_rebuy_amount
@@ -443,62 +439,112 @@ class GameEngine:
 
         for player in self.players.values():
             player.current_bet = None
+            player.current_signal_hint = None
+            player.current_signal_bid = 0.0
+            player.current_signal_event_id = None
+            player.current_round_volatility_carry_cost = 0.0
+            player.current_round_pre_bet_rebuy = False
+
+            if player.volatility_available > 0 and self.volatility_hold_cost > 0:
+                if player.bankroll >= self.volatility_hold_cost - 1e-9:
+                    carry = round(self.volatility_hold_cost, 2)
+                    player.bankroll -= carry
+                    player.volatility_hold_cost_paid += carry
+                    player.current_round_volatility_carry_cost = carry
+                else:
+                    # Cannot pay holding cost, card expires.
+                    player.volatility_available = 0
+
+            if self._apply_rebuy_if_busted(player):
+                player.current_round_pre_bet_rebuy = True
 
     def _resolve_current_event(self) -> None:
         event = self.current_event
         if event is None:
             return
 
-        threshold = self._rng.random()
-        cumulative = 0.0
-        outcome = event.options[-1]
-        for option in event.options:
-            cumulative += option.probability
-            if threshold <= cumulative:
-                outcome = option
-                break
-
-        option_lookup = {option.key: option for option in event.options}
+        hit = self._rng.random() <= event.true_probability
 
         for player in self.players.values():
             bet = player.current_bet
             pnl_delta = 0.0
-            bet_option_key: str | None = None
-            bet_amount = 0
+            bet_amount = 0.0
+            base_bet_amount = 0.0
+            insurance_refund = 0.0
+            insurance_premium = 0.0
+            double_down_used = False
+            insurance_used = False
+            volatility_used = False
+            volatility_multiplier: float | None = None
+            volatility_carry_cost = round(player.current_round_volatility_carry_cost, 2)
+            signal_bid = 0.0
+            signal_hint: str | None = None
+
+            if player.current_signal_event_id == event.event_id and player.current_signal_hint:
+                signal_bid = round(player.current_signal_bid, 2)
+                signal_hint = player.current_signal_hint
 
             if bet and bet.event_id == event.event_id:
-                bet_option_key = bet.option_key
+                base_bet_amount = bet.base_amount
                 bet_amount = bet.amount
-                selected = option_lookup[bet.option_key]
-                if bet.option_key == outcome.key:
-                    gross_return = bet.amount * selected.payout_multiplier
-                    player.bankroll += gross_return
-                    pnl_delta = gross_return - bet.amount
+                insurance_premium = bet.insurance_premium
+                double_down_used = bet.double_down
+                insurance_used = bet.insurance
+                volatility_used = bet.volatility
+                if volatility_used:
+                    volatility_multiplier = self.volatility_profit_multiplier
+                if hit:
+                    profit = bet.amount * (event.odds_numerator / event.odds_denominator)
+                    if volatility_multiplier is not None:
+                        profit *= volatility_multiplier
+                    player.bankroll += bet.amount + profit
+                    pnl_delta = profit - bet.insurance_premium
                 else:
-                    pnl_delta = -float(bet.amount)
+                    if bet.insurance:
+                        insurance_refund = round(bet.amount * self.insurance_refund_pct, 2)
+                        player.bankroll += insurance_refund
+                    pnl_delta = -bet.amount + insurance_refund - bet.insurance_premium
 
-            rebuy_applied = self._apply_rebuy_if_busted(player)
+            pnl_delta -= signal_bid
+            pnl_delta -= volatility_carry_cost
+
+            rebuy_applied = player.current_round_pre_bet_rebuy or self._apply_rebuy_if_busted(player)
 
             player.results.append(
                 PlayerEventResult(
                     event_id=event.event_id,
                     title=event.title,
-                    bet_option_key=bet_option_key,
-                    bet_amount=bet_amount,
-                    outcome_key=outcome.key,
+                    base_bet_amount=round(base_bet_amount, 2),
+                    bet_amount=round(bet_amount, 2),
+                    double_down_used=double_down_used,
+                    insurance_used=insurance_used,
+                    volatility_used=volatility_used,
+                    volatility_multiplier=round(volatility_multiplier, 4) if volatility_multiplier is not None else None,
+                    volatility_carry_cost=volatility_carry_cost,
+                    insurance_premium=round(insurance_premium, 2),
+                    insurance_refund=round(insurance_refund, 2),
+                    signal_bid=round(signal_bid, 2),
+                    signal_hint=signal_hint,
+                    outcome_hit=hit,
                     pnl_delta=round(pnl_delta, 2),
                     bankroll_after=round(player.bankroll, 2),
                     rebuy_applied=rebuy_applied,
                 )
             )
             player.current_bet = None
+            player.current_signal_hint = None
+            player.current_signal_bid = 0.0
+            player.current_signal_event_id = None
+            player.current_round_volatility_carry_cost = 0.0
+            player.current_round_pre_bet_rebuy = False
 
         self.event_history.append(
             EventResult(
                 event_id=event.event_id,
                 title=event.title,
-                outcome_key=outcome.key,
-                outcome_label=outcome.label,
+                outcome_hit=hit,
+                outcome_label="HIT" if hit else "MISS",
+                odds_label=self._odds_label(event),
             )
         )
 
@@ -582,19 +628,13 @@ class GameEngine:
             )
         )
 
-    def _public_option(self, option: BetOption) -> dict[str, Any]:
-        return {
-            "key": option.key,
-            "label": option.label,
-        }
-
     def _public_event(self, event: GameEvent) -> dict[str, Any]:
         return {
             "event_id": event.event_id,
             "title": event.title,
             "description": event.description,
+            "odds_label": self._odds_label(event),
             "bet_window_seconds": event.bet_window_seconds,
-            "options": [self._public_option(option) for option in event.options],
         }
 
     def _admin_event(self, event: GameEvent) -> dict[str, Any]:
@@ -602,8 +642,11 @@ class GameEngine:
             "event_id": event.event_id,
             "title": event.title,
             "description": event.description,
+            "true_probability": event.true_probability,
+            "odds_numerator": event.odds_numerator,
+            "odds_denominator": event.odds_denominator,
+            "odds_label": self._odds_label(event),
             "bet_window_seconds": event.bet_window_seconds,
-            "options": [asdict(option) for option in event.options],
         }
 
     def _public_fermi(self, question: FermiQuestion) -> dict[str, Any]:
@@ -647,10 +690,13 @@ class GameEngine:
                 "rank": self.rank_for(token),
                 "bust_count": player.bust_count,
                 "ever_busted": player.ever_busted,
+                "double_down_available": player.double_down_available,
+                "insurance_available": player.insurance_available,
+                "volatility_available": player.volatility_available,
                 "current_bet": asdict(player.current_bet) if player.current_bet else None,
                 "current_fermi_guess": player.current_fermi_guess,
-                "results": [asdict(result) for result in player.results[-12:]],
-                "fermi_results": [asdict(result) for result in player.fermi_results[-5:]],
+                "results": [asdict(result) for result in player.results],
+                "fermi_results": [asdict(result) for result in player.fermi_results],
             }
 
         current_event_payload: dict[str, Any] | None = None
@@ -660,7 +706,7 @@ class GameEngine:
                 "event_id": event.event_id,
                 "title": event.title,
                 "description": event.description,
-                "options": [self._public_option(option) for option in event.options],
+                "odds_label": self._odds_label(event),
                 "bet_window_seconds": event.bet_window_seconds,
                 "seconds_remaining": max(0, int((self.event_deadline - now).total_seconds())) if self.event_deadline else 0,
             }
@@ -681,8 +727,15 @@ class GameEngine:
             "paused": self.paused,
             "seed": self.seed,
             "random_outcomes": True,
-            "admin_start_required": True,
+            "admin_start_required": False,
             "player_count": len(self.players),
+            "max_players": self.max_players,
+            "double_down_uses": self.double_down_uses,
+            "insurance_uses": self.insurance_uses,
+            "volatility_uses": self.volatility_uses,
+            "volatility_hold_cost": self.volatility_hold_cost,
+            "insurance_premium_pct": self.insurance_premium_pct,
+            "insurance_refund_pct": self.insurance_refund_pct,
             "event_index": self.current_event_index + 1 if self.current_event_index >= 0 else 0,
             "total_events": len(self.events),
             "fermi_index": self.current_fermi_index + 1 if self.current_fermi_index >= 0 else 0,
@@ -719,6 +772,9 @@ class GameEngine:
                 "bankroll": round(player.bankroll, 2),
                 "ever_busted": player.ever_busted,
                 "bust_count": player.bust_count,
+                "double_down_available": player.double_down_available,
+                "insurance_available": player.insurance_available,
+                "volatility_available": player.volatility_available,
                 "current_bet": asdict(player.current_bet) if player.current_bet else None,
                 "current_fermi_guess": player.current_fermi_guess,
             }
@@ -729,7 +785,7 @@ class GameEngine:
         history_by_event = {result.event_id: result for result in self.event_history}
         for event in self.events:
             resolved = history_by_event.get(event.event_id)
-            total_wagered = 0
+            total_wagered = 0.0
             bets_placed = 0
             for player in self.players.values():
                 if resolved is not None:
@@ -749,8 +805,9 @@ class GameEngine:
                     "resolved": resolved is not None,
                     "outcome": asdict(resolved) if resolved is not None else None,
                     "bets_placed": bets_placed,
-                    "total_wagered": total_wagered,
+                    "total_wagered": round(total_wagered, 2),
                     "bet_window_seconds": event.bet_window_seconds,
+                    "odds_label": self._odds_label(event),
                 }
             )
 
@@ -783,6 +840,7 @@ class GameEngine:
             "paused": self.paused,
             "seed": self.seed,
             "player_count": len(self.players),
+            "max_players": self.max_players,
             "event_index": self.current_event_index + 1 if self.current_event_index >= 0 else 0,
             "total_events": len(self.events),
             "fermi_index": self.current_fermi_index + 1 if self.current_fermi_index >= 0 else 0,
@@ -792,6 +850,12 @@ class GameEngine:
             "round_stipend": self.round_stipend,
             "bust_rebuy_amount": self.bust_rebuy_amount,
             "access_code": self.access_code,
+            "double_down_uses": self.double_down_uses,
+            "insurance_uses": self.insurance_uses,
+            "volatility_uses": self.volatility_uses,
+            "volatility_hold_cost": self.volatility_hold_cost,
+            "insurance_premium_pct": self.insurance_premium_pct,
+            "insurance_refund_pct": self.insurance_refund_pct,
             "rules": self.rules,
             "events": self.event_catalog(include_sensitive=True),
             "fermi_questions": self.fermi_catalog(include_answers=True),
@@ -860,6 +924,16 @@ class GameEngine:
             player.contributions = self.starting_bankroll
             player.current_bet = None
             player.current_fermi_guess = None
+            player.current_signal_hint = None
+            player.current_signal_bid = 0.0
+            player.current_signal_event_id = None
+            player.signal_spend_total = 0.0
+            player.double_down_available = self.double_down_uses
+            player.insurance_available = self.insurance_uses
+            player.volatility_available = self.volatility_uses
+            player.volatility_hold_cost_paid = 0.0
+            player.current_round_volatility_carry_cost = 0.0
+            player.current_round_pre_bet_rebuy = False
             player.ever_busted = False
             player.bust_count = 0
             player.results = []
@@ -891,6 +965,16 @@ class GameEngine:
                 player.contributions = new_value
                 player.current_bet = None
                 player.current_fermi_guess = None
+                player.current_signal_hint = None
+                player.current_signal_bid = 0.0
+                player.current_signal_event_id = None
+                player.signal_spend_total = 0.0
+                player.double_down_available = self.double_down_uses
+                player.insurance_available = self.insurance_uses
+                player.volatility_available = self.volatility_uses
+                player.volatility_hold_cost_paid = 0.0
+                player.current_round_volatility_carry_cost = 0.0
+                player.current_round_pre_bet_rebuy = False
                 player.ever_busted = False
                 player.bust_count = 0
                 player.results = []
@@ -922,9 +1006,9 @@ class GameEngine:
         *,
         title: str | None = None,
         description: str | None = None,
-        yes_label: str | None = None,
-        no_label: str | None = None,
-        yes_probability: float | None = None,
+        true_probability: float | None = None,
+        odds_numerator: float | None = None,
+        odds_denominator: float | None = None,
         bet_window_seconds: int | None = None,
     ) -> GameEvent:
         self._require_lobby()
@@ -932,24 +1016,14 @@ class GameEngine:
         idx = self._event_index_by_id(event_id)
         current = self.events[idx]
 
-        option_yes = current.options[0]
-        option_no = current.options[1]
-
-        new_prob = option_yes.probability if yes_probability is None else float(yes_probability)
-        new_yes_label = option_yes.label if yes_label is None else yes_label.strip() or option_yes.label
-        new_no_label = option_no.label if no_label is None else no_label.strip() or option_no.label
-        new_title = current.title if title is None else title.strip() or current.title
-        new_description = current.description if description is None else description.strip() or current.description
-        new_window = current.bet_window_seconds if bet_window_seconds is None else int(bet_window_seconds)
-
-        updated = _binary_event(
+        updated = _event(
             event_id=current.event_id,
-            title=new_title,
-            description=new_description,
-            yes_probability=new_prob,
-            bet_window_seconds=new_window,
-            yes_label=new_yes_label,
-            no_label=new_no_label,
+            title=current.title if title is None else (title.strip() or current.title),
+            description=current.description if description is None else (description.strip() or current.description),
+            true_probability=current.true_probability if true_probability is None else float(true_probability),
+            odds_numerator=current.odds_numerator if odds_numerator is None else float(odds_numerator),
+            odds_denominator=current.odds_denominator if odds_denominator is None else float(odds_denominator),
+            bet_window_seconds=current.bet_window_seconds if bet_window_seconds is None else int(bet_window_seconds),
         )
         self.events[idx] = updated
         return updated
@@ -961,21 +1035,15 @@ class GameEngine:
 
         new_events: list[GameEvent] = []
         for idx, spec in enumerate(event_specs, start=1):
-            title = str(spec.get("title") or f"Event {idx}").strip()
-            description = str(spec.get("description") or "Random event").strip()
-            yes_label = str(spec.get("yes_label") or "YES").strip()
-            no_label = str(spec.get("no_label") or "NO").strip()
-            probability = float(spec.get("yes_probability", 0.5))
-            window = int(spec.get("bet_window_seconds", 30))
             new_events.append(
-                _binary_event(
+                _event(
                     event_id=idx,
-                    title=title,
-                    description=description,
-                    yes_probability=probability,
-                    bet_window_seconds=window,
-                    yes_label=yes_label,
-                    no_label=no_label,
+                    title=str(spec.get("title") or f"Event {idx}").strip(),
+                    description=str(spec.get("description") or "Event proposition").strip(),
+                    true_probability=float(spec.get("true_probability", 0.5)),
+                    odds_numerator=float(spec.get("odds_numerator", 1.0)),
+                    odds_denominator=float(spec.get("odds_denominator", 1.0)),
+                    bet_window_seconds=int(spec.get("bet_window_seconds", 30)),
                 )
             )
 
@@ -995,17 +1063,12 @@ class GameEngine:
         idx = self._fermi_index_by_id(question_id)
         current = self.fermi_questions[idx]
 
-        new_prompt = current.prompt if prompt is None else prompt.strip() or current.prompt
-        new_true_value = current.true_value if true_value is None else float(true_value)
-        new_unit = current.unit if unit is None else unit.strip() or current.unit
-        new_seconds = current.answer_window_seconds if answer_window_seconds is None else int(answer_window_seconds)
-
         updated = _fermi_question(
             question_id=current.question_id,
-            prompt=new_prompt,
-            true_value=new_true_value,
-            unit=new_unit,
-            answer_window_seconds=new_seconds,
+            prompt=current.prompt if prompt is None else (prompt.strip() or current.prompt),
+            true_value=current.true_value if true_value is None else float(true_value),
+            unit=current.unit if unit is None else (unit.strip() or current.unit),
+            answer_window_seconds=current.answer_window_seconds if answer_window_seconds is None else int(answer_window_seconds),
         )
         self.fermi_questions[idx] = updated
         return updated
@@ -1017,17 +1080,13 @@ class GameEngine:
 
         new_questions: list[FermiQuestion] = []
         for idx, spec in enumerate(question_specs, start=1):
-            prompt = str(spec.get("prompt") or f"Fermi Question {idx}").strip()
-            true_value = float(spec.get("true_value", 1.0))
-            unit = str(spec.get("unit") or "value").strip()
-            seconds = int(spec.get("answer_window_seconds", 35))
             new_questions.append(
                 _fermi_question(
                     question_id=idx,
-                    prompt=prompt,
-                    true_value=true_value,
-                    unit=unit,
-                    answer_window_seconds=seconds,
+                    prompt=str(spec.get("prompt") or f"Fermi Question {idx}").strip(),
+                    true_value=float(spec.get("true_value", 1.0)),
+                    unit=str(spec.get("unit") or "value").strip(),
+                    answer_window_seconds=int(spec.get("answer_window_seconds", 35)),
                 )
             )
 
