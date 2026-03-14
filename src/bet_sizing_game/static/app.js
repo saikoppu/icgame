@@ -266,7 +266,7 @@ function renderRules(rules) {
       <h3>Powerups</h3>
       <ul>
         <li><strong>Double Down</strong>: doubles your stake and payout exposure on that round.</li>
-        <li><strong>Insurance</strong>: pays a premium and refunds part of the stake if the round misses.</li>
+        <li><strong>Insurance</strong>: pays a premium and refunds 50% of the stake if the round misses.</li>
         <li><strong>Volatility</strong>: applies a fixed payout multiplier (x1.50) when used.</li>
         <li><strong>Volatility Carry</strong>: if unused, the volatility card charges a fixed $100 per round.</li>
       </ul>
